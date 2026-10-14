@@ -1,8 +1,10 @@
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { FaChartLine, FaShoppingCart, FaBoxes, FaUsers,FaChevronLeft,FaChevronRight,FaSignOutAlt} from "react-icons/fa";
 import { FaUserGroup } from "react-icons/fa6";
 import { BiCategory } from "react-icons/bi";
 import { GrTransaction } from "react-icons/gr";
+import { useAuth } from "../../Context/AuthContext";
+import Swal from "sweetalert2";
 
 interface SidebarProps {
   isSidebarOpen: boolean;
@@ -11,15 +13,27 @@ interface SidebarProps {
 
 const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }: SidebarProps) => {
   const location = useLocation();
+  // context
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  // SweetAlert Toast Notification Config
+    const Toast = Swal.mixin({
+      toast: true,
+      position: "top-end",
+      showConfirmButton: false,
+      timer: 2500,
+      timerProgressBar: true,
+    });
 
   const menuItems = [
     { title: "Dashboard", path: "/dashboard", icon: <FaChartLine /> },
-    { title: "Users", path: "/dashboard/users", icon: <FaUserGroup/> },
-    { title: "Categories", path: "/dashboard/categories", icon: <BiCategory /> },
-    { title: "Transactions", path: "/dashboard/transactions", icon: <GrTransaction /> },
+    { title: "Users", path: "/dashboard/usersTable", icon: <FaUserGroup/> },
+    { title: "Categories", path: "/dashboard/categoryTable", icon: <BiCategory /> },
+    { title: "Transactions", path: "/dashboard/transactionTable", icon: <GrTransaction /> },
+    { title: "Products", path: "/dashboard/productTable", icon: <FaBoxes /> },
     { title: "Orders", path: "/dashboard/orders", icon: <FaShoppingCart /> },
-    { title: "Products", path: "/dashboard/products", icon: <FaBoxes /> },
-    { title: "Customers", path: "/dashboard/customers", icon: <FaUsers /> },
+    { title: "Customers", path: "/dashboard/customerTable", icon: <FaUsers /> },
   ];
 
   const handleLinkClick = () => {
@@ -28,9 +42,19 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }: SidebarProps) => {
     }
   };
 
+  // handle logout
+  const handleLogout = () => {
+  // logout localstorage
+  logout();
+  // navigate user
+  navigate("/login");
+  // show toast
+  Toast.fire({ icon: "success", title: "User logout successfully!"});
+};
+
   return (
     <>
-      {/* মোবাইল ব্যাকড্রপ (সাইডবার খোলা থাকলে স্ক্রিনের বাকি অংশ হালকা কালো হবে) */}
+      {/* Mobile backdrop (the rest of the screen will dim if the sidebar is open) */}
       {isSidebarOpen && (
         <div
           onClick={() => setIsSidebarOpen(false)}
@@ -38,7 +62,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }: SidebarProps) => {
         />
       )}
 
-      {/* ভাসমান টগল বাটন (মোবাইলে স্ক্রিনের বাম পাশে সবসময় স্থির থাকবে) */}
+      {/* Floating toggle button (will remain fixed on the left side of the screen on mobile) */}
       <button
   onClick={() => setIsSidebarOpen((prev) => !prev)}
   className={`fixed top-1/2 -translate-y-1/2 bg-red-500 hover:bg-red-600 text-white p-1.5 rounded-r-full md:rounded-full shadow-lg border-2 border-l-0 md:border-l-2 border-white transition-all duration-300 z-50 flex items-center justify-center cursor-pointer ${
@@ -92,7 +116,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }: SidebarProps) => {
         {/* সাইডবারের নিচের অংশ - লগআউট বাটন */}
         <div className="p-2.5 border-t border-slate-800">
           <button
-            onClick={() => alert("Logout Action")}
+            onClick={handleLogout}
             title="Logout"
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-rose-400 hover:bg-rose-500/10 transition ${
               !isSidebarOpen ? "justify-center" : ""

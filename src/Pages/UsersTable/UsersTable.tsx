@@ -1,365 +1,325 @@
-import React, { useState, useEffect } from "react";
-import { FaSearch, FaEye, FaTrash, FaUserShield, FaChevronLeft, FaChevronRight, FaTimes, FaUser, FaPlus,FaUndo,FaUsers,FaUserSlash } from "react-icons/fa";
-import { Link, useNavigate } from "react-router";
+import { useState } from "react";
+import { Link } from "react-router";
+import { useAuth } from "../../Context/AuthContext";
+import axiosInstance from "../../api/axiosInstance";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Swal from "sweetalert2";
 
-/* ----------------------------------------------------------------------
-   [FUTURE INTEGRATION IMPORTS - COMMENTED OUT]
-   ভবিষ্যতে TanStack Query ও Axios ব্যবহার করতে চাইলে এগুলো আনকমেন্ট করবেন:
-   
-   import axios from "axios";
-   import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
----------------------------------------------------------------------- */
-
-// ----------------------------------------------------------------------
-// Types & Interfaces
-// ----------------------------------------------------------------------
-export type UserRole = "ADMIN" | "MODERATOR" | "STAFF";
-export type UserStatus = "APPROVED" | "PENDING" | "REJECTED";
-
-export interface IUser {
-  id: string;
-  name: string;
-  email: string;
-  profileImage: string | null;
-  role: UserRole;
-  status: UserStatus;
-  createdOrdersCount: number;
-  isDeleted: boolean;
+//get all user data (The reason for calling this outside the function is to prevent repeated re-renders and ensure that the view doesn't reload every time a change is made)
+const getAllUsers = async (isDeleted: boolean, searchTerm: string) => {
+  const response = await axiosInstance.get(`/users?isDeleted=${isDeleted}&searchTerm=${searchTerm}`);
+  return response.data;
 }
 
-// ----------------------------------------------------------------------
-// Dummy Initial Data (আপাতত টেস্ট করার জন্য)
-// ----------------------------------------------------------------------
-const INITIAL_DUMMY_USERS: IUser[] = [
-  { id: "usr-1", name: "Anisur Rahman", email: "anis@store.com", profileImage: "https://i.pravatar.cc/150?img=11", role: "MODERATOR", status: "PENDING", createdOrdersCount: 45, isDeleted: false },
-  { id: "usr-2", name: "Mehedi Hasan", email: "mehedi@store.com", profileImage: null, role: "STAFF", status: "PENDING", createdOrdersCount: 0, isDeleted: false },
-  { id: "usr-3", name: "Tanvir Ahmed", email: "tanvir@store.com", profileImage: "https://i.pravatar.cc/150?img=13", role: "STAFF", status: "REJECTED", createdOrdersCount: 2, isDeleted: true },
-];
-
-// Logged In User Config
-const CURRENT_LOGGED_IN_USER = {
-  id: "usr-1",
-  role: "ADMIN" as UserRole
+// update user role
+const updateUserRole = async ({ id, role }: { id: string; role: string }) => {
+  const response = await axiosInstance.patch(`/users/${id}/role`, { role });
+  return response.data;
 };
 
-// Toast Notification Config
-const Toast = Swal.mixin({
-  toast: true,
-  position: "top-end",
-  showConfirmButton: false,
-  timer: 2000,
-  timerProgressBar: true,
-});
+// update user status
+const updateUserStatus = async ({ id, status }: { id: string; status: string }) => {
+  const response = await axiosInstance.patch(`/users/${id}/status`, { status });
+  return response.data;
+};
 
-/* ----------------------------------------------------------------------
-   [FUTURE AXIOS & API SETUP - COMMENTED OUT]
-   
-   const axiosInstance = axios.create({ baseURL: "https://api.example.com" });
-   const fetchUsersApi = async () => (await axiosInstance.get("/users")).data;
-   const updateRoleApi = async ({ userId, role }) => await axiosInstance.patch(`/users/${userId}/role`, { role });
----------------------------------------------------------------------- */
+// delete user (soft delete)
+const deleteUser = async (id: string) => {
+  const response = await axiosInstance.delete(`/users/${id}`);
+  return response.data;
+};
 
-const UsersTable: React.FC = () => {
-  const navigate = useNavigate();
+// restore user
+const restoreUser = async (id: string) => {
+  const response = await axiosInstance.patch(`/users/${id}/restore`);
+  return response.data;
+};
 
-  // 1. Local State (ডামি ডাটা দিয়ে স্টেট হ্যান্ডলিং)
-  const [users, setUsers] = useState<IUser[]>(INITIAL_DUMMY_USERS);
-  const [searchTerm, setSearchTerm] = useState<string>("");
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [viewMode, setViewMode] = useState<"ACTIVE" | "DELETED">("ACTIVE");
-  const itemsPerPage: number = 5;
+const UsersTable = () => {
+  // declare tab state (true = Active Users, false = Deleted/Trash)
+  const [activeTab, setActiveTab] = useState<boolean>(() => {
+  const savedTab = localStorage.getItem("activeTab");
+  return savedTab !== null ? JSON.parse(savedTab) : true;});
+  // handle tab function
+  const handleTabChange = (status: boolean) => {
+  setActiveTab(status);
+  localStorage.setItem("activeTab", JSON.stringify(status));};
 
-  /* ----------------------------------------------------------------------
-     [FUTURE TANSTACK QUERY HOOKS - COMMENTED OUT]
-     
-     const queryClient = useQueryClient();
-     const { data: users = [], isLoading } = useQuery({ queryKey: ["users"], queryFn: fetchUsersApi });
-     const roleMutation = useMutation({
-       mutationFn: updateRoleApi,
-       onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] })
-     });
-  ---------------------------------------------------------------------- */
-
-  // Handlers (স্থানীয়ভাবে ডাটা আপডেট ও Toast দেখানোর জন্য)
-  const handleRoleChange = (userId: string, newRole: UserRole) => {
-    setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u)));
-    Toast.fire({ icon: "success", title: `Role updated to ${newRole}` });
-  };
-
-  const handleStatusChange = (userId: string, newStatus: UserStatus) => {
-    setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, status: newStatus } : u)));
-    Toast.fire({ icon: "success", title: `Status updated to ${newStatus}` });
-  };
-
-  // Delete Handler with Modal Confirmation
-  const handleDeleteUser = (userId: string) => {
-    Swal.fire({
-      title: "Are you sure?",
-      text: "You are moving this user to the trash list!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#ef4444",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, delete it!",
-      cancelButtonText: "Cancel",
-      customClass: {
-        popup: "rounded-2xl",
-        confirmButton: "rounded-xl font-bold px-4 py-2",
-        cancelButton: "rounded-xl font-bold px-4 py-2"
-      }
-    }).then((result) => {
-      if (result.isConfirmed) {
-        setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, isDeleted: true } : u)));
-        Toast.fire({ icon: "success", title: "User moved to trash" });
-      }
+  // SweetAlert Toast Notification Config
+    const Toast = Swal.mixin({
+      toast: true,
+      position: "top-end",
+      showConfirmButton: false,
+      timer: 1000,
+      timerProgressBar: true,
     });
-  };
 
-  const handleRestoreUser = (userId: string) => {
-    setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, isDeleted: false } : u)));
-    Toast.fire({ icon: "success", title: "User activated successfully!" });
-  };
+  const {role, id, token, email} = useAuth();
 
-  // Filter Users Logic
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesTab = viewMode === "DELETED" ? user.isDeleted : !user.isDeleted;
-    return matchesSearch && matchesTab;
+  // search state
+  const [searchTerm, setSearchTerm] = useState<string>("");
+
+  // TanStack Query
+  const {data, isLoading, isError, error} = useQuery({
+    queryKey: ["users", activeTab, searchTerm],
+    queryFn: () => getAllUsers(!activeTab, searchTerm)
   });
 
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage) || 1;
 
-  useEffect(() => {
-    if (currentPage > totalPages) setCurrentPage(totalPages);
-  }, [filteredUsers.length, totalPages, currentPage]);
+    // Role Update Mutation
+    const queryClient = useQueryClient();
+    const { mutate: updateRoleMutation } = useMutation({
+    mutationFn: updateUserRole,
+    onSuccess: (data) => {
+      // Automatically reloading/refreshing data by invalidating the cache
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      // show toast
+      Toast.fire({ icon: "success", title: data?.message || "User role updated successfully!"});
+    },
+    onError: (error: any) => {
+      // show toast
+    Toast.fire({ icon: "error", title: error?.response?.data?.message || "Failed to update role!"});
+    },
+  });
 
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedUsers = filteredUsers.slice(startIndex, startIndex + itemsPerPage);
+  // Status Update Mutation
+  const { mutate: updateStatusMutation } = useMutation({
+    mutationFn: updateUserStatus,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      // show toast
+      Toast.fire({ icon: "success", title: data?.message || "User status updated successfully!"});
+    },
+    onError: (error: any) => {
+        // show toast
+    Toast.fire({ icon: "error", title: error?.response?.data?.message || "Failed to update status!"});
+    },
+  });
+
+  // Handle Delete Confirmation
+const handleDelete = (userId: string) => {
+  Swal.fire({
+    title: "Are you sure?",
+    text: "You want to delete this user?",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#d33",
+    cancelButtonColor: "#3085d6",
+    confirmButtonText: "Yes, delete it!",
+  }).then((result) => {
+    if (result.isConfirmed) {
+      deleteUserMutation(userId);
+    }
+  });
+};
+
+  // Delete User Mutation
+  const { mutate: deleteUserMutation } = useMutation({
+    mutationFn: deleteUser,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      // show toast
+      Toast.fire({ icon: "success", title: data?.message || "User deleted successfully!"});
+    },
+    onError: (error: any) => {
+      // show toast
+    Toast.fire({ icon: "error", title: error?.response?.data?.message || "Failed to delete user!"});
+    },
+  });
+
+  // Handle Restore Confirmation
+const handleRestore = (userId: string) => {
+  Swal.fire({
+    title: "Are you sure?",
+    text: "You want to restore this user?",
+    icon: "question",
+    showCancelButton: true,
+    confirmButtonColor: "#10b981",
+    cancelButtonColor: "#6b7280",
+    confirmButtonText: "Yes, restore it!",
+  }).then((result) => {
+    if (result.isConfirmed) {
+      restoreUserMutation(userId);
+    }
+  });
+};
+
+  // Restore User Mutation
+  const { mutate: restoreUserMutation } = useMutation({
+    mutationFn: restoreUser,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      // show toast
+      Toast.fire({ icon: "success", title: data?.message || "User restored successfully!"});
+    },
+    onError: (error: any) => {
+      // show toast
+    Toast.fire({ icon: "error", title: error?.response?.data?.message || "Failed to restore user!"});
+    },
+  });
+
 
   return (
-    <div className="p-3 sm:p-5 md:p-6 space-y-4 max-w-7xl mx-auto">
-      {/* SECTION 1: HEADER CARD */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-2xl border border-gray-100 shadow-sm">
-        <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-xl shrink-0">
-            <FaUserShield />
-          </div>
-          <div>
-            <h2 className="text-base sm:text-lg font-bold text-gray-800 leading-tight">System Users</h2>
-            <p className="text-xs text-gray-400 font-medium">Manage admin, moderator, and staff roles</p>
-          </div>
+    <div className="p-4 sm:p-6 bg-base-100 rounded-2xl shadow-sm border border-base-200 mt-5">
+      {/* Search & Tab Filters Header */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+        
+        {/* Search Input (Mobile = full width, SM = auto/w-72) */}
+        <div className="w-full lg:w-80">
+          <input onChange={(e) => setSearchTerm(e.target.value)} value={searchTerm} type="text" placeholder="Search by email..." className="input input-bordered input-sm w-full focus:outline-none"/>
         </div>
+        {/* createUser */}
+        {/* Active vs Deleted Tabs (Mobile = full width, SM = auto) */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-base-200 p-1 rounded-xl w-full sm:w-auto">
+            <button
+    className={`btn bg-red-500 btn-sm text-white ${
+      role === "ADMIN" && id && email && token ? "col-span-1" : "col-span-2"
+    }`}
+    onClick={() => setSearchTerm("")}
+  >
+    Reset
+  </button>
+          {/* createUser */}
+          {role === "ADMIN" && id && email && token && (
+            <Link to="/dashboard/createUser">
+              <button className="btn btn-xs bg-blue-600 hover:bg-blue-700 text-white border-none p-4 w-full">
+                CreateUser
+              </button>
+            </Link>
+          )}
 
-        <button 
-          onClick={() => navigate("/dashboard/users/create")}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-all cursor-pointer shrink-0"
-        >
-          <FaPlus className="text-xs" />
-          <span>Add User</span>
-        </button>
+          <button onClick={() => handleTabChange(true)} className={`btn btn-sm border-none rounded-lg text-xs flex-1 sm:flex-initial transition-all ${activeTab ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm" : "bg-transparent text-base-content/70 hover:bg-base-300"}`}>Users</button>
+          <button onClick={() => handleTabChange(false)} className={`btn btn-sm border-none rounded-lg text-xs flex-1 sm:flex-initial transition-all ${ !activeTab ? "bg-rose-600 text-white hover:bg-rose-700 shadow-sm"   : "bg-transparent text-base-content/70 hover:bg-base-300"}`}>Deleted</button>
+        </div>
       </div>
 
-      {/* SECTION 2: SEARCH BAR & TAB TOGGLE */}
-<div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-gray-100 shadow-sm">
-  
-  {/* Search Bar */}
-  <div className="relative w-full lg:w-80">
-    <input
-      type="text"
-      placeholder="Search user name or email..."
-      value={searchTerm}
-      onChange={(e) => {
-        setSearchTerm(e.target.value);
-        setCurrentPage(1);
-      }}
-      className="w-full pl-9 pr-8 py-2 text-xs bg-gray-50/60 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
-    />
-    <FaSearch className="absolute left-3 top-3 text-gray-400 text-xs" />
-    {searchTerm && (
-      <button 
-        onClick={() => { setSearchTerm(""); setCurrentPage(1); }} 
-        className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
-      >
-        <FaTimes className="text-xs" />
-      </button>
-    )}
-  </div>
+      {/* Table Container */}
+      <div className="overflow-x-auto w-full rounded-xl border border-base-200">
+        <table className="table w-full bg-base-100">
+          {/* Table Head */}
+          <thead className="bg-base-200/50 text-base-content/70 text-xs uppercase">
+            <tr>
+              <th className="py-3 px-4">#</th>
+              <th className="py-3 px-4">Profile</th>
+              <th className="py-3 px-4">Role</th>
+              <th className="py-3 px-4">Status</th>
+              <th className="py-3 px-4 text-center">Action</th>
+            </tr>
+          </thead>
 
-  {/* Tab Toggle Buttons */}
-  <div className="flex items-center gap-1.5 bg-gray-100 p-1 rounded-xl text-xs font-bold w-full lg:w-auto">
-    <button
-      onClick={() => { setViewMode("ACTIVE"); setCurrentPage(1); }}
-      className={`flex-1 lg:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-lg transition-all cursor-pointer ${
-        viewMode === "ACTIVE" ? "bg-white text-emerald-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
-      }`}
-    >
-      <FaUsers className="text-xs shrink-0" />
-      <span className="whitespace-nowrap">Active Users</span>
-      <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.2 text-[10px] rounded-full shrink-0">
-        {users.filter((u) => !u.isDeleted).length}
-      </span>
-    </button>
-
-    <button
-      onClick={() => { setViewMode("DELETED"); setCurrentPage(1); }}
-      className={`flex-1 lg:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-lg transition-all cursor-pointer ${
-        viewMode === "DELETED" ? "bg-white text-rose-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
-      }`}
-    >
-      <FaUserSlash className="text-xs shrink-0" />
-      <span className="whitespace-nowrap">Deleted Users</span>
-      <span className="bg-rose-100 text-rose-700 px-1.5 py-0.2 text-[10px] rounded-full shrink-0">
-        {users.filter((u) => u.isDeleted).length}
-      </span>
-    </button>
-  </div>
-
-</div>
-
-      {/* SECTION 3: USER TABLE */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[700px]">
-            <thead className="bg-gray-50/60 border-b border-gray-100 text-[11px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider">
-              <tr>
-                <th className="py-3.5 px-4 w-12 text-center">#</th>
-                <th className="py-3.5 px-4">USER DETAILS</th>
-                <th className="py-3.5 px-4">ROLE</th>
-                <th className="py-3.5 px-4">STATUS</th>
-                <th className="py-3.5 px-4 text-center">ORDERS</th>
-                <th className="py-3.5 px-4 text-center">ACTION</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 text-xs sm:text-sm">
-              {paginatedUsers.length > 0 ? (
-                paginatedUsers.map((user, index) => {
-                  const isSelf = user.id === CURRENT_LOGGED_IN_USER.id;
-
-                  return (
-                    <tr key={user.id} className="hover:bg-gray-50/80 transition-colors">
-                      <td className="py-3 px-4 text-center font-semibold text-gray-400">
-                        {startIndex + index + 1}
-                      </td>
-
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          {user.profileImage ? (
-                            <img src={user.profileImage} alt={user.name} className="w-8 h-8 rounded-full object-cover border border-gray-200" />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 border border-gray-200">
-                              <FaUser className="text-xs" />
-                            </div>
-                          )}
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <p className="font-bold text-gray-800 leading-tight">{user.name}</p>
-                              {isSelf && <span className="bg-emerald-100 text-emerald-700 text-[10px] font-extrabold px-1.5 py-0.5 rounded">YOU</span>}
-                            </div>
-                            <p className="text-[11px] text-gray-400">{user.email}</p>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* ROLE FIELD */}
-                      <td className="py-3 px-4">
-                        {user.isDeleted ? (
-                          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{user.role}</span>
-                        ) : (
-                          <select
-                            value={user.role}
-                            onChange={(e) => handleRoleChange(user.id, e.target.value as UserRole)}
-                            className={`text-xs font-bold border rounded-lg px-2.5 py-1 focus:outline-none cursor-pointer ${
-                              user.role === "ADMIN"
-                                ? "bg-purple-50 text-purple-700 border-purple-200"
-                                : user.role === "MODERATOR"
-                                ? "bg-blue-50 text-blue-700 border-blue-200"
-                                : "bg-gray-100 text-gray-700 border-gray-200"
-                            }`}
-                          >
-                            <option value="ADMIN">ADMIN</option>
-                            <option value="MODERATOR">MODERATOR</option>
-                            <option value="STAFF">STAFF</option>
-                          </select>
-                        )}
-                      </td>
-
-                      {/* STATUS FIELD */}
-                      <td className="py-3 px-4">
-                        {user.isDeleted ? (
-                          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{user.status}</span>
-                        ) : (
-                          <select
-                            value={user.status}
-                            onChange={(e) => handleStatusChange(user.id, e.target.value as UserStatus)}
-                            className={`text-xs font-bold border rounded-lg px-2.5 py-1 focus:outline-none cursor-pointer ${
-                              user.status === "APPROVED"
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                : user.status === "PENDING"
-                                ? "bg-amber-50 text-amber-700 border-amber-200"
-                                : "bg-rose-50 text-rose-700 border-rose-200"
-                            }`}
-                          >
-                            <option value="PENDING">PENDING</option>
-                            <option value="APPROVED">APPROVED</option>
-                            <option value="REJECTED">REJECTED</option>
-                          </select>
-                        )}
-                      </td>
-
-                      <td className="py-3 px-4 text-center">
-                        <span className="inline-block bg-emerald-50 text-emerald-600 font-bold text-xs px-2.5 py-1 rounded-lg">
-                          {user.createdOrdersCount}
-                        </span>
-                      </td>
-
-                      <td className="py-3 px-4 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <Link to={`/dashboard/users/${user.id}`} className="inline-flex items-center gap-1 text-xs font-bold bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white px-2.5 py-1.5 rounded-lg transition-all">
-                            <FaEye className="text-xs" /> View
-                          </Link>
-
-                          {!user.isDeleted ? (
-                            <button onClick={() => handleDeleteUser(user.id)} className="inline-flex items-center gap-1 text-xs font-bold bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white px-2.5 py-1.5 rounded-lg transition-all cursor-pointer">
-                              <FaTrash className="text-xs" /> Delete
-                            </button>
-                          ) : (
-                            <button onClick={() => handleRestoreUser(user.id)} className="inline-flex items-center gap-1 text-xs font-bold bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white px-2.5 py-1.5 rounded-lg transition-all cursor-pointer">
-                              <FaUndo className="text-xs" /> Restore
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
+          {/* Table Body */}
+          {activeTab ? (
+            /* ================= ACTIVE USERS TABLE BODY ================= */
+            <tbody>
+              {isLoading ? (<tr><td colSpan={6} className="text-center py-4 text-green-500">Loading users...</td></tr>) : isError ? ( <tr> <td colSpan={6} className="text-center py-4 text-error"> Error loading users!</td></tr>) : !data?.data || data?.data?.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-8 text-gray-400 text-xs font-medium">
-                    No {viewMode.toLowerCase()} users found.
+                  <td colSpan={5} className="text-center py-6 text-gray-500 font-medium">
+                    No users found! <span className="text-red-500">Please Reset</span>
                   </td>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              ) : data?.data?.map((user: any, index: number) => <tr key={user.id} className="hover:bg-base-200/30 transition-colors border-b border-base-200">
+                <td className="font-semibold text-sm">{index + 1}</td>
+                <td>
+                  <div className="flex items-center gap-3">
+                    <div className="avatar">
+                      <div className="mask mask-squircle h-10 w-10">
+                        <img src={user?.profileImage ? user.profileImage : "/empty-person.png"} alt={user.name || "N/A"}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm">{user.name || "N/A"}</div>
+                      <div className="text-xs text-base-content/60">{user.email}</div>
+                    </div>
+                  </div>
+                </td>
+                {/* Role Select Input */}
+                  <td>
+                  {
+                    role === "ADMIN" ? (<select disabled={user.id === id || user.email === email} name="role" defaultValue={user.role} className="select select-bordered select-xs w-28 focus:outline-none" onChange={(e) => updateRoleMutation({ id: user.id, role: e.target.value })}>
+                    <option value="ADMIN">ADMIN</option>
+                    <option value="MODERATOR">MODERATOR</option>
+                    <option value="STAFF">STAFF</option>
+                  </select>): (<span className="badge badge-ghost font-medium">{user.role}</span>)
+                  }
+                  </td>
+                {/* Status Select Input */}
+                <td>
+                  {
+                    role === "ADMIN" || role === "MODERATOR" ? (<select disabled={user.id === id || user.email === email}  name="status" defaultValue={user.status} className="select select-bordered select-xs w-28 focus:outline-none" onChange={(e) => updateStatusMutation({ id: user.id, status: e.target.value })}>
+                    <option value="APPROVED">APPROVED</option>
+                    <option value="PENDING">PENDING</option>
+                    <option value="REJECTED">REJECTED</option>
+                  </select>) : (<span className="badge badge-ghost font-medium">{user.status}</span>)
+                  }
+                  
+                </td>
 
-        {/* Pagination Controls */}
-        <div className="p-3 border-t border-gray-100 flex items-center justify-center">
-          <div className="flex items-center gap-2 text-xs">
-            <button disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)} className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 cursor-pointer">
-              <FaChevronLeft className="text-xs" />
-            </button>
-            <span className="px-3 py-1 font-semibold text-gray-700 bg-gray-50 border border-gray-200 rounded-lg">
-              {currentPage} / {totalPages}
-            </span>
-            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)} className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 cursor-pointer">
-              <FaChevronRight className="text-xs" />
-            </button>
-          </div>
-        </div>
+                {/* Action Buttons */}
+                <td>
+                  <div className="flex items-center justify-center gap-2">
+                    <Link to={`/dashboard/singleUser/${user.id}`}>
+                      <button className="btn btn-xs bg-emerald-600 hover:bg-emerald-700 text-white border-none">
+                        View
+                      </button>
+                    </Link>
+                    
+                    <button className="btn btn-xs bg-rose-600 hover:bg-rose-700 text-white border-none disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed" disabled={user.id === id || user.email === email} onClick={() => handleDelete(user.id)}>Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>)}
+            </tbody>
+          ) : (
+            /* ================= TRASH / DELETED USERS TABLE BODY ================= */
+            <tbody>
+              {isLoading ? (<tr><td colSpan={6} className="text-center py-4">Loading users...</td></tr>) : isError ? ( <tr> <td colSpan={6} className="text-center py-4 text-error"> Error loading users!</td></tr>) : !data?.data || data?.data?.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="text-center py-6 text-gray-500 font-medium">
+                    No users found! <span className="text-red-500">Please Reset</span>
+                  </td>
+                </tr>
+              ): data?.data?.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-6 text-gray-500 font-medium">
+                    No users found!
+                  </td>
+                </tr>
+              ) : data?.data?.map((user: any, index: number) => <tr key={user.id} className="hover:bg-base-200/30 transition-colors border-b border-base-200">
+                <td className="font-semibold text-sm">{index + 1}</td>
+                <td>
+                  <div className="flex items-center gap-3">
+                    <div className="avatar">
+                      <div className="mask mask-squircle h-10 w-10">
+                        <img src={user?.profileImage ? user.profileImage : "/empty-person.png"} alt={user.name || "N/A"}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm">{user.name || "N/A"}</div>
+                      <div className="text-xs text-base-content/60">{user.email}</div>
+                    </div>
+                  </div>
+                </td>
+                {/* Readonly Text for Deleted Table */}
+                <td className="text-xs font-semibold text-base-content/70">{user.role}</td>
+                <td className="text-xs font-semibold text-amber-600">{user.status}</td>
+                {/* Restore & View Action Buttons */}
+                <td>
+                  <div className="flex items-center justify-center gap-2">
+                    <Link to={`/dashboard/singleUser/${user.id}`}>
+                      <button className="btn btn-xs bg-emerald-600 hover:bg-emerald-700 text-white border-none">
+                        View
+                      </button>
+                    </Link>
+                    <button className="btn btn-xs bg-rose-600 hover:bg-rose-700 text-white border-none" onClick={() => handleRestore(user.id)}>Restore</button>
+                  </div>
+                </td>
+              </tr>)}
+              
+            </tbody>
+          )}
+        </table>
       </div>
     </div>
   );

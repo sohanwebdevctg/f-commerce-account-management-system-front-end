@@ -1,401 +1,252 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router";
-import {
-  FaArrowLeft,
-  FaEdit,
-  FaCalendarAlt,
-  FaClock,
-  FaBoxOpen,
-  FaLayerGroup,
-  FaCheckCircle,
-  FaTimesCircle,
-} from "react-icons/fa";
+import { useParams, Link, useNavigate } from "react-router";
+import { useQuery } from "@tanstack/react-query";
+import axiosInstance from "../../api/axiosInstance";
 
-// Interfaces for Variant & Product Structure
-export interface ProductVariant {
-  id: string;
-  name: string;
-  price: number;
-  stock: number;
-}
-
-export interface ColorOption {
-  colorName: string;
-  colorCode: string;
-  images: string[];
-  variants: ProductVariant[];
-}
-
-export interface IProductCreator {
-  name: string;
-  email: string;
-  avatar: string;
-  role: string;
-}
-
-export interface IProductDetails {
-  id: string;
-  name: string;
-  sku: string;
-  mainImage: string;
-  additionalImages?: string[];
-  category: string;
-  basePrice: number;
-  totalStock?: number;
-  totalOrders: number;
-  status: "ACTIVE" | "INACTIVE";
-  description: string;
-  hasColors: boolean;
-  colors?: ColorOption[];
-  hasVariants?: boolean;
-  variants?: ProductVariant[];
-  createdBy: IProductCreator;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// Dummy Product Data with Colors & Variants
-const mockProductData: IProductDetails = {
-  id: "prod-101",
-  name: "Lux Soft Rose Beauty Soap",
-  sku: "LX-SOAP-01",
-  mainImage: "https://via.placeholder.com/600x600/f472b6/ffffff?text=Lux+Rose+Pink",
-  category: "Beauty & Care",
-  basePrice: 85,
-  totalStock: 15,
-  totalOrders: 120,
-  status: "ACTIVE",
-  description: "Lux Soft Rose Beauty Soap leaves your skin soft, smooth and fragrant with natural rose extracts.",
-  hasColors: true,
-  colors: [
-    {
-      colorName: "Rose Pink",
-      colorCode: "#f472b6",
-      images: [
-        "https://via.placeholder.com/600x600/f472b6/ffffff?text=Rose+Pink+Main",
-        "https://via.placeholder.com/600x600/fbcfe8/ffffff?text=Rose+Pink+Back",
-      ],
-      variants: [
-        { id: "v1", name: "100g Pack", price: 85, stock: 15 },
-        { id: "v2", name: "150g Combo", price: 130, stock: 8 },
-      ],
-    },
-    {
-      colorName: "Purple Orchid",
-      colorCode: "#c084fc",
-      images: [
-        "https://via.placeholder.com/600x600/c084fc/ffffff?text=Purple+Main",
-        "https://via.placeholder.com/600x600/e9d5ff/ffffff?text=Purple+Side",
-      ],
-      variants: [
-        { id: "v3", name: "100g Pack", price: 90, stock: 10 },
-        { id: "v4", name: "150g Combo", price: 140, stock: 5 },
-      ],
-    },
-  ],
-  createdBy: {
-    name: "Sabbir Hossain",
-    email: "sabbir@store.com",
-    avatar: "https://i.pravatar.cc/150?img=11",
-    role: "STAFF/ADMIN",
-  },
-  createdAt: "2026-02-10 10:30 AM",
-  updatedAt: "2026-02-10 10:30 AM",
+// Fetch Product Detail
+const fetchProductDetail = async (id: string) => {
+  const response = await axiosInstance.get(`/products/${id}`);
+  return response.data?.data;
 };
 
-const ProductDetails: React.FC = () => {
-  const navigate = useNavigate();
+const ProductDetails = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
 
-  const [currentUserRole] = useState<"ADMIN" | "MODERATOR" | "STAFF">("ADMIN");
-  const [product] = useState<IProductDetails>(mockProductData);
+  // TanStack Query
+  const { data: product, isLoading, isError, error } = useQuery({
+    queryKey: ["productDetail", id],
+    queryFn: () => fetchProductDetail(id as string),
+    enabled: !!id,
+  });
 
-  // Dynamic Selection States
-  const [selectedColor, setSelectedColor] = useState<ColorOption | undefined>(
-    product.colors ? product.colors[0] : undefined
-  );
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | undefined>(
-    product.colors
-      ? product.colors[0]?.variants[0]
-      : product.variants
-      ? product.variants[0]
-      : undefined
-  );
-  const [activeImage, setActiveImage] = useState<string>(product.mainImage);
+  if (isLoading) {
+    return (
+      <div className="flex flex-col justify-center items-center h-64 gap-2">
+        <span className="loading loading-spinner loading-lg text-primary"></span>
+        <p className="text-sm text-gray-500 font-medium">Loading product details...</p>
+      </div>
+    );
+  }
 
-  // Sync state on color change
-  const handleColorSelect = (color: ColorOption) => {
-    setSelectedColor(color);
-    if (color.images && color.images.length > 0) {
-      setActiveImage(color.images[0]);
-    }
-    if (color.variants && color.variants.length > 0) {
-      setSelectedVariant(color.variants[0]);
-    }
-  };
-
-  // Gallery Images computation
-  const galleryImages: string[] = selectedColor?.images && selectedColor.images.length > 0
-    ? selectedColor.images
-    : product.additionalImages && product.additionalImages.length > 0
-    ? [product.mainImage, ...product.additionalImages]
-    : [product.mainImage];
-
-  const currentStock = selectedVariant ? selectedVariant.stock : (product.totalStock ?? 0);
-  const currentPrice = selectedVariant ? selectedVariant.price : product.basePrice;
-
-  const canModify = currentUserRole === "ADMIN" || currentUserRole === "MODERATOR";
+  if (isError) {
+    return (
+      <div className="text-center text-red-500 py-10">
+        <p className="font-semibold text-lg">
+          {(error as any)?.response?.data?.message || "Failed to load product details!"}
+        </p>
+        <button onClick={() => navigate(-1)} className="btn btn-outline btn-sm mt-4">
+          Go Back
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4 sm:p-6 bg-gray-50/50 min-h-screen">
-      <div className="max-w-5xl mx-auto space-y-6">
-
-        {/* Top Bar: Back & Update Button (Exact Same) */}
-        <div className="flex items-center justify-between gap-4">
-          <button
-            onClick={() => navigate("/dashboard/products")}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold rounded-xl shadow-md shadow-rose-100 transition cursor-pointer"
-          >
-            <FaArrowLeft className="text-xs" /> Back
+    <div className="max-w-6xl mx-auto my-6 p-4 space-y-6">
+      
+      {/* 🟢 TOP HEADER ACTION BUTTONS */}
+      <div className="flex items-center justify-between bg-base-100 p-4 rounded-xl border border-base-200 shadow-sm">
+        <button onClick={() => navigate(-1)} className="btn btn-sm bg-green-600 hover:bg-green-700 text-white border-none">Back
+        </button>
+        {/* Product Table বা Detail View পেজের এডিট বাটন */}
+        {!product?.isDeleted && !product?.deletedAt && (
+          <button onClick={() => navigate(`/dashboard/updateProduct/${product.id}`)}
+            className="btn btn-sm bg-red-600 hover:bg-red-700 text-white border-none">Update
           </button>
+        )}
+      </div>
+      {/* 🟢 MAIN PRODUCT BASIC INFO CARD */}
+<div className="card flex-col md:flex-row bg-base-100 shadow-sm border border-base-200 overflow-hidden items-start p-4 gap-4">
+  
+  {/* Thumbnail Image (Size Reduced) */}
+  <figure className="w-full md:w-48 h-48 shrink-0 bg-base-200 rounded-lg p-2 self-center md:self-start">
+    <img 
+      src={product?.thumbnailImage || '/placeholder-product.png'} 
+      alt={product?.name || "Product"} 
+      className="w-full h-full object-contain rounded-md"
+    />
+  </figure>
 
-          {canModify && (
-            <button
-              onClick={() => navigate(`/dashboard/products/edit/${id || product.id}`)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-100 transition cursor-pointer"
-            >
-              <FaEdit className="text-xs" /> Update Product
-            </button>
-          )}
+  {/* Details Section */}
+  <div className="w-full space-y-3">
+    
+    {/* Product Name */}
+    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
+      {product?.name}
+    </h2>
+
+    {/* Info Grid (Product Type, Product Status, and Action/Deleted Status) */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600 dark:text-gray-300 bg-base-200/50 p-3 rounded-lg">
+      <p><span className="font-semibold text-gray-800 dark:text-white">Category:</span> {product?.category?.name || 'N/A'}</p>
+      <p><span className="font-semibold text-gray-800 dark:text-white">Brand:</span> {product?.brand || 'N/A'}</p>
+      <p><span className="font-semibold text-gray-800 dark:text-white">Created By:</span> {product?.createdBy?.name} ({product?.createdBy?.role})</p>
+      <p><span className="font-semibold text-gray-800 dark:text-white">Updated By:</span> {product?.updatedBy?.name || 'N/A'}</p>
+      <p><span className="font-semibold text-gray-800 dark:text-white">Created At:</span> {product?.createdAt ? new Date(product.createdAt).toLocaleString() : 'N/A'}</p>
+      <p><span className="font-semibold text-gray-800 dark:text-white">Last Updated:</span> {product?.updatedAt ? new Date(product.updatedAt).toLocaleString() : 'N/A'}</p>
+      <p><span className="font-semibold text-gray-800 dark:text-white">Product Type:</span> <span className="uppercase font-medium text-primary">{product?.productType}</span></p>
+      
+      {/* Product Status (Active / Inactive) */}
+      <p>
+        <span className="font-semibold text-gray-800 dark:text-white">Product Status:</span>{" "}
+        <span className={`font-semibold ${product?.isActive ? 'text-emerald-600' : 'text-amber-500'}`}>
+          {product?.isActive ? 'Active' : 'Inactive'}
+        </span>
+      </p>
+
+      {/* Action / Delete Status */}
+      <p>
+        <span className="font-semibold text-gray-800 dark:text-white">Action Status:</span>{" "}
+        <span className={`badge badge-sm font-semibold text-white ${product?.isDeleted ? 'badge-error' : 'badge-success'}`}>
+          {product?.isDeleted ? 'Deleted' : 'Restored'}
+        </span>
+      </p>
+    </div>
+
+    {/* Short Description */}
+    {product?.shortDescription && (
+      <div className="text-sm text-gray-600 dark:text-gray-300">
+        <span className="font-semibold text-gray-800 dark:text-white block">Short Description:</span>
+        <p className="italic">{product.shortDescription}</p>
+      </div>
+    )}
+
+    {/* Full Description */}
+    {product?.description && (
+      <div className="text-sm text-gray-700 dark:text-gray-300">
+        <span className="font-semibold text-gray-800 dark:text-white block mb-1">Full Description:</span>
+        <p className="whitespace-pre-line">{product.description}</p>
+      </div>
+    )}
+
+  </div>
+</div>
+
+    {/* 🟢 VARIANTS & SUB-ITEMS TABLE SECTION */}
+<div className="bg-base-100 p-5 rounded-xl border border-base-200 shadow-sm space-y-6">
+  <h3 className="text-lg font-bold text-gray-800 dark:text-white border-b pb-2">
+    Product Variants & Pricing Details
+  </h3>
+
+  {product?.variants && product.variants.length > 0 ? (
+    product.variants.map((variant: any, index: number) => (
+      <div key={variant.id || index} className="space-y-4 border border-base-200 p-4 rounded-xl bg-base-50/50">
+        
+        {/* Variant Header Info (Color + Name on Left | Status + Action on Right) */}
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-base-200/70 p-3 rounded-lg">
+          <div className="flex items-center gap-2">
+            {variant.colorCode && (
+              <span 
+                className="w-4 h-4 sm:w-5 sm:h-5 rounded-full border border-gray-400 inline-block shadow-sm shrink-0" 
+                style={{ backgroundColor: variant.colorCode }}
+              ></span>
+            )}
+            <span className="font-bold text-xs text-gray-800 dark:text-white sm:text-sm">
+              {variant.name || variant.variantName || variant.colorName || `Variant #${index + 1}`}
+            </span>
+          </div>
+
+          {/* Status & Action Badges */}
+          <div className="flex items-center gap-2">
+            <span className={`badge badge-sm font-semibold text-white ${variant.isActive ? 'badge-success' : 'badge-warning'}`}>
+              {variant.isActive ? 'ACTIVE' : 'INACTIVE'}
+            </span>
+            <span className={`badge badge-sm font-semibold text-white ${variant.isDeleted ? 'badge-error' : 'badge-info'}`}>
+              {variant.isDeleted ? 'Deleted' : 'Restored'}
+            </span>
+          </div>
         </div>
 
-        {/* Main Card Wrapper */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          
-          {/* Header Title & Status (Exact Same) */}
-          <div className="p-6 sm:p-8 border-b border-gray-100 flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-4">
-              <div className="p-3.5 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100">
-                <FaBoxOpen className="text-2xl" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-800">{product.name}</h1>
-                <p className="text-xs text-gray-400 mt-0.5">SKU: {product.sku}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <span className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-700 text-xs font-bold px-3 py-1.5 rounded-lg border border-gray-200">
-                <FaLayerGroup /> {product.category}
-              </span>
-              <span
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
-                  product.status === "ACTIVE"
-                    ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
-                    : "bg-amber-50 text-amber-600 border border-amber-200"
-                }`}
-              >
-                {product.status === "ACTIVE" ? <FaCheckCircle /> : <FaTimesCircle />}
-                {product.status}
-              </span>
-            </div>
-          </div>
-
-          {/* Created By (Staff/Admin) Section (Exact Same) */}
-          <div className="p-6 sm:p-8 bg-gray-50/40 border-b border-gray-100">
-            <div className="bg-gray-50/80 p-4 rounded-2xl border border-gray-100/80">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">
-                CREATED BY ({product.createdBy.role})
-              </p>
-              <div className="flex items-center gap-3">
-                <img
-                  src={product.createdBy.avatar}
-                  alt={product.createdBy.name}
-                  className="w-11 h-11 rounded-full object-cover border-2 border-white shadow-xs"
-                />
-                <div>
-                  <h4 className="text-sm font-bold text-gray-800">
-                    {product.createdBy.name}
-                  </h4>
-                  <p className="text-xs text-gray-400">{product.createdBy.email}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Product Center Content: Frontend Modal Interactive Style */}
-          <div className="p-6 sm:p-8 grid grid-cols-1 md:grid-cols-12 gap-8 border-b border-gray-100 items-start">
-            
-            {/* Gallery Left */}
-            <div className="md:col-span-5 space-y-3">
-              <div className="w-full aspect-square rounded-2xl overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center shadow-inner">
-                <img
-                  src={activeImage}
-                  alt={product.name}
-                  className="w-full h-full object-cover transition-all duration-300"
+        {/* Multiple Images Grid */}
+        {variant.images && variant.images.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {variant.images.map((imgObj: any) => (
+              <div key={imgObj.id || imgObj} className="w-16 h-16 border rounded-md overflow-hidden bg-white p-1">
+                <img 
+                  src={imgObj.productImage || imgObj.url || imgObj} 
+                  alt="Variant" 
+                  className="w-full h-full object-cover rounded" 
                 />
               </div>
-
-              {/* Dynamic Thumbnails */}
-              {galleryImages.length > 1 && (
-                <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                  {galleryImages.map((img, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setActiveImage(img)}
-                      className={`w-14 h-14 rounded-xl overflow-hidden border-2 shrink-0 transition cursor-pointer ${
-                        activeImage === img
-                          ? "border-emerald-500 scale-95 shadow-xs"
-                          : "border-gray-200 opacity-70 hover:opacity-100"
-                      }`}
-                    >
-                      <img src={img} alt="thumb" className="w-full h-full object-cover" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Right Column: Pricing, Color Swatches & Size Options */}
-            <div className="md:col-span-7 space-y-6">
-              
-              {/* Stats Box */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="bg-gray-50 p-3.5 rounded-xl border border-gray-100 text-center">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase">PRICE</p>
-                  <p className="text-base font-extrabold text-gray-800 mt-0.5">৳{currentPrice}</p>
-                </div>
-
-                <div className="bg-gray-50 p-3.5 rounded-xl border border-gray-100 text-center">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase">STOCK</p>
-                  <p className="text-base font-extrabold text-gray-800 mt-0.5">
-                    {currentStock} pcs
-                  </p>
-                </div>
-
-                <div className="bg-gray-50 p-3.5 rounded-xl border border-gray-100 text-center">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase">ORDERS</p>
-                  <p className="text-base font-extrabold text-emerald-600 mt-0.5">
-                    {product.totalOrders}
-                  </p>
-                </div>
-              </div>
-
-              {/* Color Selection (Swatches with active state) */}
-              {product.hasColors && product.colors && (
-                <div className="space-y-2 border-t border-gray-100 pt-4">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-gray-700">Select Color:</span>
-                    <span className="font-semibold text-rose-500">
-                      {selectedColor?.colorName}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2.5">
-                    {product.colors.map((color) => {
-                      const isSelected = selectedColor?.colorName === color.colorName;
-                      return (
-                        <button
-                          key={color.colorName}
-                          type="button"
-                          onClick={() => handleColorSelect(color)}
-                          title={color.colorName}
-                          className={`w-8 h-8 rounded-full transition-all transform flex items-center justify-center cursor-pointer ${
-                            isSelected
-                              ? "ring-2 ring-offset-2 ring-rose-500 scale-110 shadow-xs"
-                              : "hover:scale-105 opacity-90 hover:opacity-100"
-                          }`}
-                          style={{
-                            backgroundColor: color.colorCode || "#ccc",
-                          }}
-                        >
-                          {isSelected && (
-                            <span className="w-2 h-2 rounded-full bg-white shadow-xs" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Option / Size Selection */}
-              {product.hasColors && (selectedColor?.variants || product.variants) && (
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-700 block">
-                    Select Option / Size:
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {(selectedColor?.variants || product.variants)?.map((v) => {
-                      const isSelected = selectedVariant?.id === v.id;
-                      return (
-                        <button
-                          key={v.id}
-                          type="button"
-                          onClick={() => setSelectedVariant(v)}
-                          className={`px-4 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer ${
-                            isSelected
-                              ? "border-gray-900 bg-gray-900 text-white shadow-xs"
-                              : "border-gray-200 text-gray-700 hover:bg-gray-50"
-                          }`}
-                        >
-                          {v.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Description */}
-              <div className="space-y-1.5 border-t border-gray-100 pt-4">
-                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                  DESCRIPTION
-                </p>
-                <p className="text-xs text-gray-600 leading-relaxed bg-gray-50/50 p-3.5 rounded-xl border border-gray-100">
-                  {product.description}
-                </p>
-              </div>
-            </div>
-
+            ))}
           </div>
+        )}
 
-          {/* Bottom Timestamps Grid: Created Date & Last Updated (Exact Same) */}
-          <div className="p-6 sm:p-8 bg-gray-50/30">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              
-              {/* Created Date */}
-              <div className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center gap-3 shadow-2xs">
-                <div className="p-3 bg-blue-50 text-blue-600 rounded-xl shrink-0">
-                  <FaCalendarAlt className="text-base" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 font-medium">Created Date</p>
-                  <p className="text-xs font-bold text-gray-800 mt-0.5">
-                    {product.createdAt}
-                  </p>
-                </div>
-              </div>
+        {/* Variant Items Table */}
+        <div className="overflow-x-auto w-full border border-base-200 rounded-lg">
+          <table className="table table-xs w-full text-left">
+            <thead className="bg-base-200 text-gray-700">
+              <tr>
+                <th className="py-2.5 px-3">Variant Name</th>
+                <th className="py-2.5 px-3">Size Name</th>
+                <th className="py-2.5 px-3">Cost Price</th>
+                <th className="py-2.5 px-3">Sell Price</th>
+                <th className="py-2.5 px-3">Orders</th>
+                <th className="py-2.5 px-3">Profit</th>
+                <th className="py-2.5 px-3">Stock</th>
+                <th className="py-2.5 px-3">Status</th>
+                <th className="py-2.5 px-3">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {variant.variantItems && variant.variantItems.length > 0 ? (
+                variant.variantItems.map((item: any) => (
+                  <tr key={item.id} className="hover:bg-base-200/40">
+                    
+                    {/* Item Name */}
+                    <td className="py-2.5 px-3 font-semibold text-gray-800 dark:text-white">
+                      {item.name || item.varientName || item.variantName || 'Default'}
+                    </td>
+                    
+                    {/* Size */}
+                    <td className="py-2.5 px-3 font-semibold text-gray-800 dark:text-white">
+                      {item.size ? `(${item.size})` : 'N/A'}
+                    </td>
 
-              {/* Last Updated */}
-              <div className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center gap-3 shadow-2xs">
-                <div className="p-3 bg-purple-50 text-purple-600 rounded-xl shrink-0">
-                  <FaClock className="text-base" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 font-medium">Last Updated</p>
-                  <p className="text-xs font-bold text-gray-800 mt-0.5">
-                    {product.updatedAt}
-                  </p>
-                </div>
-              </div>
+                    <td className="py-2.5 px-3 text-gray-600">৳{item.costPrice}</td>
+                    <td className="py-2.5 px-3 font-bold text-emerald-600">৳{item.sellPrice}</td>
+                    <td className="py-2.5 px-3 font-medium text-gray-700">
+                      {item.orderCount ?? item.orders ?? 0}
+                    </td>
+                    <td className="py-2.5 px-3 font-medium text-blue-600">৳{item.profit || 0}</td>
+                    <td className="py-2.5 px-3">
+                      <span className={`badge badge-sm ${item.stock > 0 ? 'badge-ghost font-bold' : 'badge-error text-white'}`}>
+                        {item.stock}
+                      </span>
+                    </td>
 
-            </div>
-          </div>
+                    {/* Active/Inactive Status */}
+                    <td className="py-2.5 px-3">
+                      <span className={`text-[11px] font-bold ${item.isActive ? 'text-emerald-600' : 'text-amber-500'}`}>
+                        {item.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
 
+                    {/* Deleted/Restored Action Status */}
+                    <td className="py-2.5 px-3">
+                      <span className={`badge badge-sm text-[10px] text-white font-semibold ${item.isDeleted ? 'badge-error' : 'badge-success'}`}>
+                        {item.isDeleted ? 'Deleted' : 'Restored'}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={9} className="text-center py-4 text-gray-400">
+                    No items found for this variant.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
 
       </div>
+    ))
+  ) : (
+    <p className="text-gray-500 text-center py-4">No variant details available for this product.</p>
+  )}
+</div>
+
     </div>
   );
 };

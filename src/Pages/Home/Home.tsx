@@ -1,164 +1,136 @@
-import { useState, useMemo, useCallback } from "react";
-// ১. ফেক ডাটা এবং টাইপ ইমপোর্ট
-import { FAKE_PRODUCTS, CATEGORIES } from "../../mockData/products";
-import type { Product, ColorOption, ProductVariant } from "../../mockData/products";
-
-// ২. আমাদের সবকটি তৈরি করা কম্পোনেন্ট ইমপোর্ট
-import ProductSearch from "../../Components/ProductSearch/ProductSearch";
-import ProductGrid from "../../Components/ProductGrid/ProductGrid";
-import ProductDetailsModal from "../../Components/ProductDetailsModal/ProductDetailsModal";
+import { useEffect, useState } from "react";
+import SearchAndCategory from "../../Components/SearchAndCategory/SearchAndCategory";
+import ProductCard from "../../Components/ProductCard/ProductCard";
+import ViewProductDetailsModal from "../../Components/ViewProductDetailsModal/ViewProductDetailsModal";
 import CartDrawer from "../../Components/CartDrawer/CartDrawer";
-import type { CartItem } from "../../Components/CartDrawer/CartDrawer";
+import Swal from "sweetalert2";
+import CustomerModal from "../../Components/CustomerModal/CustomerModal";
+
 
 const Home = () => {
-  // --- স্টেট ম্যানেজমেন্ট ---
-  
-  // সিলেক্ট করা ক্যাটাগরি ও সার্চ টার্ম ফিল্টারিং স্টেট
-  const [selectedCategory, setSelectedCategory] = useState<string>(CATEGORIES[0]);
-  const [searchQuery, setSearchQuery] = useState<string>("");
 
-  // বিস্তারিত দেখার জন্য সিলেক্ট করা প্রোডাক্ট এবং মোডাল ওপেন স্টেট
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  // search and category state
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+
+  // view details modal state
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
-  // কার্ট ড্রয়ার ওপেন/ক্লোজ স্টেট এবং কার্ট আইটেমের তালিকা স্টেট
+  // cart drawer open/close state
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
-  // --- ১. ফিল্টারিং লজিক (Search & Category Filter) ---
-const filteredProducts = useMemo(() => {
-  return FAKE_PRODUCTS.filter((product) => {
-    const matchesCategory = product.category === selectedCategory;
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
-}, [selectedCategory, searchQuery]);
+  // customer modal
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState<boolean>(false);
 
-  // --- ২. মোডাল হ্যান্ডলার ---
-  
-  // প্রোডাক্টে ক্লিক করলে মোডাল ওপেন করার ফাংশন
-  const handleViewDetails = (product: Product) => {
-    setSelectedProduct(product);
-    setIsModalOpen(true);
+  const handleOpenCustomerModal = () => {
+    setIsCustomerModalOpen(true);
   };
 
-  // মোডাল বন্ধ করার ফাংশন
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedProduct(null);
+  const handleCloseCustomerModal = () => {
+    setIsCustomerModalOpen(false);
   };
 
-  // --- ৩. কার্ট লজিক (Add to Cart / Duplicate Prevention) ---
-  
-  const handleAddToCart = useCallback(
-    (selectedData: {
-      product: Product;
-      selectedColor?: ColorOption;
-      selectedVariant?: ProductVariant;
-      quantity: number;
-      unitPrice: number;
-      image: string;
-    }) => {
-      const { product, selectedColor, selectedVariant, quantity, unitPrice, image } =
-        selectedData;
+  // ================= CART & LOCALSTORAGE STATE =================
 
-      // প্রোডাক্ট, কালার এবং ভ্যারিয়েন্টের সমন্বয়ে ইউনিক আইডি (Key) তৈরি
-      const cartItemId = `${product.id}-${selectedColor?.colorName || "noColor"}-${
-        selectedVariant?.id || "noVariant"
-      }`;
+  // initializing data from the browser's localStorage
+const [cartItems, setCartItems] = useState<any[]>(() => {
+  const savedCart = localStorage.getItem("cartItems");
+  return savedCart ? JSON.parse(savedCart) : [];
+});
 
-      // চেক করছি প্রোডাক্টের নির্দিষ্ট ভ্যারিয়েন্টটি আগে থেকে কার্টে আছে কিনা
-      const existingItem = cartItems.find((item) => item.id === cartItemId);
+  // updating localStorage whenever cartItems change
+  useEffect(() => {localStorage.setItem("cartItems", JSON.stringify(cartItems));}, [cartItems]);
 
-      if (existingItem) {
-        // যদি আগেই যুক্ত থাকে, তবে ডুপ্লিকেট হবে না এবং Warning দেখাবে
-        return {
-          success: false,
-          message: "This item variant is already in your cart list!",
-        };
-      }
+  // add to cart function
+  const handleAddToCart = (item: any) => {
+    setCartItems((prevItems) => {
+      const existingIndex = prevItems.findIndex(
+        (cartItem) => cartItem.variantItemId === item.variantItemId
+      );
 
-      // কার্টে নতুন আইটেম যুক্ত করা (কিন্তু ড্রয়ার স্বয়ংক্রিয়ভাবে ওপেন হবে না)
-      const newItem: CartItem = {
-        id: cartItemId,
-        product,
-        selectedColor,
-        selectedVariant,
-        quantity,
-        unitPrice,
-        image,
-      };
-
-      setCartItems((prevItems) => [...prevItems, newItem]);
-      
-      return { success: true };
-    },
-    [cartItems]
-  );
-
-  // কার্টের পরিমাণ বাড়ানো বা কমানোর লজিক
-  const handleUpdateQuantity = (id: string, delta: number) => {
-    setCartItems((prev) =>
-      prev
-        .map((item) => {
-          if (item.id === id) {
-            const newQty = item.quantity + delta;
-            return newQty > 0 ? { ...item, quantity: newQty } : item;
+      if (existingIndex > -1) {
+        return prevItems.map((cartItem, index) => {
+          if (index === existingIndex) {
+            return {
+              ...cartItem,
+              quantity: cartItem.quantity + 1,
+            };
           }
-          return item;
-        })
-        .filter((item) => item.quantity > 0)
+          return cartItem;
+        });
+      } else {
+        return [...prevItems, { ...item, quantity: 1 }];
+      }
+    });
+  };
+
+  // --- কার্টের পরিমাণ বাড়ানো/কমানোর ফাংশন ---
+  const handleProductQuantity = (variantItemId: string, delta: number) => {
+    setCartItems((prev) =>
+      prev.map((item) => {
+        if (item.variantItemId === variantItemId) {
+          const newQty = item.quantity + delta;
+          if (newQty > item.maxStock && delta > 0) return item;
+          return newQty > 0 ? { ...item, quantity: newQty } : item;
+        }
+        return item;
+      })
     );
   };
 
-  // কার্ট থেকে সিঙ্গেল আইটেম মুছে ফেলার লজিক
-  const handleRemoveItem = (id: string) => {
-    setCartItems((prev) => prev.filter((item) => item.id !== id));
+  // --- কার্ট থেকে আইটেম মুছে ফেলার ফাংশন ---
+  const handleRemoveItem = (variantItemId: string) => {
+    setCartItems((prev) => prev.filter((item) => item.variantItemId !== variantItemId));
+    // SweetAlert2 Toast Notification
+      Swal.fire({
+        icon: "success",
+        title: "Product Removed Successfully!",
+        toast: true,
+        position: "top-end",
+        showConfirmButton: false,
+        timer: 100,
+        timerProgressBar: true,
+      });
   };
 
-  // অর্ডার সফল হলে কার্ট খালি করার লজিক
+  // --- কার্ট সম্পূর্ণ খালি করার ফাংশন ---
   const handleClearCart = () => {
     setCartItems([]);
   };
 
+
+
+  // ===================== Product Details Modal ==========================
+  // handle open modal
+  const handleViewDetails = (productId: string) => {
+    setSelectedProductId(productId);
+    setIsModalOpen(true);
+  };
+
+  // handle close modal
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedProductId(null);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50/50 py-12">
+    <div className="container mx-auto py-10">
+      {/* search and category */}
+      <SearchAndCategory searchTerm={searchTerm} setSearchTerm={setSearchTerm}selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory}></SearchAndCategory>
 
-      {/* প্রধান কন্টেন্ট সেকশন */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
-        
-        {/* ১. সার্চ ও ক্যাটাগরি ফিল্টার কম্পোনেন্ট */}
-        <ProductSearch
-          categories={CATEGORIES}
-          selectedCategory={selectedCategory}
-          onSelectCategory={setSelectedCategory}
-          onSearch={setSearchQuery}
-        />
+      {/* product card */}
+      <ProductCard searchTerm={searchTerm} selectedCategory={selectedCategory} onViewDetails={handleViewDetails}></ProductCard>
 
-        {/* ২. প্রোডাক্ট গ্রিড লিস্ট কম্পোনেন্ট */}
-        <ProductGrid
-          products={filteredProducts}
-          onViewDetails={handleViewDetails}
-        />
-      </main>
+      {/* view product details modal */}
+      <ViewProductDetailsModal key={selectedProductId || "modal"} isOpen={isModalOpen} onClose={handleCloseModal}selectedProductId={selectedProductId} cartItems={cartItems} handleAddToCart={handleAddToCart}/>
 
-      {/* ৩. প্রোডাক্ট ডিটেইলস মোডাল (পপ-আপ) */}
-      <ProductDetailsModal
-        product={selectedProduct}
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        onAddToCart={handleAddToCart}
-      />
+      {/* cart drawer */}
+      <CartDrawer cartItems={cartItems} isCartOpen={isCartOpen} setIsCartOpen={setIsCartOpen} handleProductQuantity={handleProductQuantity} handleRemoveItem={handleRemoveItem} handleClearCart={handleClearCart} handleOpenCustomerModal={handleOpenCustomerModal}/>
 
-      {/* ৪. রাইট সাইড স্লাইড-ওভার কার্ট ড্রয়ার ও অর্ডার ফরম মোডাল */}
-      <CartDrawer
-        cartItems={cartItems}
-        isCartOpen={isCartOpen}
-        setIsCartOpen={setIsCartOpen}
-        onUpdateQuantity={handleUpdateQuantity}
-        onRemoveItem={handleRemoveItem}
-        onClearCart={handleClearCart}
-      />
+      {/* customer modal */}
+      <CustomerModal isCustomerModalOpen={isCustomerModalOpen} handleCloseCustomerModal={handleCloseCustomerModal} cartItems={cartItems}></CustomerModal>
+
     </div>
   );
 };
