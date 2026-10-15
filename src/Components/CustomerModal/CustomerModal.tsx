@@ -35,6 +35,9 @@ const CustomerModal = ({ isCustomerModalOpen, handleCloseCustomerModal, cartItem
       Toast.fire({ icon: "error", title: error.response?.data?.message || error.message});
       }
     })
+  
+  // calculate total quantity
+  const totalQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   // calculate total amount
   const totalAmount = cartItems.reduce((total, item) => total + (item.sellPrice * item.quantity),0);
@@ -71,6 +74,15 @@ const CustomerModal = ({ isCustomerModalOpen, handleCloseCustomerModal, cartItem
   // call customer mutation
   customerMutation({name,phone, email});
 
+  // orderPayload
+  const orderPayload = {
+    customerInfo: { name, phone, email, city, address },
+    cartItems: cartItems,
+    quantity: totalQuantity,
+    amount: totalAmount
+  };
+
+  console.log("Complete Order Payload to send Backend:", orderPayload);
 
   }
 

@@ -26,7 +26,7 @@ const ViewProductDetailsModal = ({ isOpen, onClose, selectedProductId, cartItems
   enabled: !!selectedProductId && isOpen, // It will be called only if the modal opens and the ID exists
 });
 
-  console.log("Fetched Product Data:", product);
+  // console.log("Fetched Product Data:", product);
 
   // State to retain the color if the user selects a different one
   const [selectedVariant, setSelectedVariant] = useState<any>(null);
@@ -64,13 +64,15 @@ const handleAddToCartClick = () => {
 
   const itemToAdd = {
     productId: product?.id || selectedProductId,
-    productName: product?.name,
-    variantItemId: currentVariantItem?.id,
-    colorCode: currentVariant?.colorCode,
-    size: currentVariantItem?.size,
-    sellPrice: currentVariantItem?.sellPrice || 0,
-    image: currentImage,
-    maxStock: originalStock,
+  productName: product?.name,
+  variantItemId: currentVariantItem?.id,
+  variantName: currentVariantItem?.variantName,
+  colorCode: currentVariant?.colorCode,
+  size: currentVariantItem?.size,
+  sellPrice: currentVariantItem?.sellPrice || 0, 
+  quantity: 1,
+  totalPrice: (currentVariantItem?.sellPrice || 0) * 1,
+  image: currentImage,
   };
 
   handleAddToCart(itemToAdd);
