@@ -32,7 +32,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }: SidebarProps) => {
     { title: "Categories", path: "/dashboard/categoryTable", icon: <BiCategory /> },
     { title: "Transactions", path: "/dashboard/transactionTable", icon: <GrTransaction /> },
     { title: "Products", path: "/dashboard/productTable", icon: <FaBoxes /> },
-    { title: "Orders", path: "/dashboard/orders", icon: <FaShoppingCart /> },
+    { title: "Orders", path: "/dashboard/orderTable", icon: <FaShoppingCart /> },
     { title: "Customers", path: "/dashboard/customerTable", icon: <FaUsers /> },
   ];
 
@@ -63,15 +63,8 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }: SidebarProps) => {
       )}
 
       {/* Floating toggle button (will remain fixed on the left side of the screen on mobile) */}
-      <button
-  onClick={() => setIsSidebarOpen((prev) => !prev)}
-  className={`fixed top-1/2 -translate-y-1/2 bg-red-500 hover:bg-red-600 text-white p-1.5 rounded-r-full md:rounded-full shadow-lg border-2 border-l-0 md:border-l-2 border-white transition-all duration-300 z-50 flex items-center justify-center cursor-pointer ${
-    isSidebarOpen 
-      ? "left-56 md:left-[208px]" 
-      : "-left-2 md:left-[50px]"
-  }`}
-  title={isSidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
->
+      <button onClick={() => setIsSidebarOpen((prev) => !prev)} className={`fixed top-1/2 -translate-y-1/2 bg-red-500 hover:bg-red-600 text-white p-1.5 rounded-r-full md:rounded-full shadow-lg border-2 border-l-0 md:border-l-2 border-white transition-all duration-300 z-50 flex items-center justify-center cursor-pointer ${
+    isSidebarOpen ? "left-56 md:left-[208px]" : "-left-2 md:left-[50px]"}`} title={isSidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}>
   {isSidebarOpen ? (
     <FaChevronLeft className="text-xs" />
   ) : (

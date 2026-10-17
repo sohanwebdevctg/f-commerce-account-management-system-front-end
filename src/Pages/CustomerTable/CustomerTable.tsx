@@ -52,6 +52,7 @@ const { mutate: updateCustomerStatusMutation } = useMutation({
   },
 });
 
+
   return (
     <div className="p-4 sm:p-6 bg-base-100 rounded-2xl shadow-sm border border-base-200 mt-5">
         {/* Search & Tab Filters Header */}
@@ -97,15 +98,10 @@ const { mutate: updateCustomerStatusMutation } = useMutation({
               </thead>
               {/* Table Body */}
               <tbody className="overflow-x-scroll overflow-y-scroll">
-                {
-                  isLoading ? (<tr>
-          <td colSpan={9} className="text-center py-6">
-            Loading transactions...
-          </td>
-        </tr>) : isError ? (
+                {isLoading ? (<tr><td colSpan={9} className="text-center py-6"> Loading customers...</td></tr>) : isError ? (
         <tr>
           <td colSpan={9} className="text-center py-6 text-error">
-            Error loading transactions!
+            Error loading customers!
           </td>
         </tr>
       ) : data?.data?.length === 0 ? (
@@ -123,9 +119,9 @@ const { mutate: updateCustomerStatusMutation } = useMutation({
         {/* Number */}
         <td className="font-semibold text-sm">{customer.phone}</td>
         {/* Quantity */}
-        <td className="font-semibold text-sm">{customer.totalQuantity}</td>
+        <td className="font-semibold text-sm">{customer.totalQuantity || 0}</td>
         {/* Total amount */}
-        <td className="font-semibold text-sm">{customer.totalAmount}</td>
+        <td className="font-semibold text-sm">{customer.totalAmount || 0}</td>
         {/* Status */}
       <td>
       {(role === "ADMIN" || role === "MODERATOR") ? (
