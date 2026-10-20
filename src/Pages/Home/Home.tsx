@@ -39,6 +39,7 @@ const [cartItems, setCartItems] = useState<any[]>(() => {
   return savedCart ? JSON.parse(savedCart) : [];
 });
 
+
   // updating localStorage whenever cartItems change
   useEffect(() => {localStorage.setItem("cartItems", JSON.stringify(cartItems));}, [cartItems]);
 

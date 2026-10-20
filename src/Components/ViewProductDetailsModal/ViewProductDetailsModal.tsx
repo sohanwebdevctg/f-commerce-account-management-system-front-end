@@ -42,8 +42,7 @@ const ViewProductDetailsModal = ({ isOpen, onClose, selectedProductId, cartItems
 
 // Direct derived data variable the conditional check
 const currentVariant = selectedVariant || product?.variants?.[0] || null;
-const currentVariantItem = 
-  currentVariant?.variantItems?.find((item: any) => item?.id === selectedVariantItem?.id) ||
+const currentVariantItem = currentVariant?.variantItems?.find((item: any) => item?.id === selectedVariantItem?.id) ||
   currentVariant?.variantItems?.[0] ||
   null;
 const currentImage = activeImage || currentVariant?.images?.[0]?.productImage || product?.thumbnailImage || "";
@@ -64,15 +63,15 @@ const handleAddToCartClick = () => {
 
   const itemToAdd = {
     productId: product?.id || selectedProductId,
-  productName: product?.name,
-  variantItemId: currentVariantItem?.id,
-  variantName: currentVariantItem?.variantName,
-  colorCode: currentVariant?.colorCode,
-  size: currentVariantItem?.size,
-  sellPrice: currentVariantItem?.sellPrice || 0, 
-  quantity: 1,
-  totalPrice: (currentVariantItem?.sellPrice || 0) * 1,
-  image: currentImage,
+    productName: product?.name,
+    variantItemId: currentVariantItem?.id,
+    varientName: currentVariantItem?.varientName || "N/A",
+    colorCode: currentVariant?.colorCode || null,
+    size: currentVariantItem?.size || 'N/A',
+    sellPrice: currentVariantItem?.sellPrice || 0, 
+    quantity: 1,
+    totalPrice: (currentVariantItem?.sellPrice || 0) * 1,
+    image: currentImage,
   };
 
   handleAddToCart(itemToAdd);

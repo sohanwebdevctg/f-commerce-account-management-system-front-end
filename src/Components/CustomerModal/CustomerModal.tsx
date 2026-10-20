@@ -27,29 +27,29 @@ const CustomerModal = ({ isCustomerModalOpen, handleCloseCustomerModal, cartItem
       timerProgressBar: true,
     });
 
-  
+    // calculate total quantity
+  const totalQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  // calculate total amount
+  const totalAmount = cartItems.reduce((total, item) => total + (item.sellPrice * item.quantity),0);
 
   // call customer mutation
     const {mutate: customerMutation} = useMutation({mutationFn: async(data: {name: string; phone: string, email?: string;}) => {
         const response = await axiosInstance.post('/customers', data)
         return response.data;
       },
-      onSuccess: (data, variables) => {
-        if (data.success === true) {
-        
-        // ফর্ম থেকে নেওয়া সুনির্দিষ্ট ডেলিভারি ইনফরমেশন এবং কাস্টমার আইডি নিয়ে অর্ডার পেলোড তৈরি
-        const totalQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-        const totalAmount = cartItems.reduce((total, item) => total + (item.sellPrice * item.quantity), 0);
+      onSuccess: (data) => {
 
+        if (data.success === true) {
+
+        // orderPayload
         const orderPayload = {
-          customerId: data.data.id, // কাস্টমার টেবিল থেকে আসা আইডি
-          customerInfo: { 
-            name: variables.name, 
-            phone: variables.phone, 
-            email: variables.email, 
-            city: (document.querySelector('input[name="city"]') as HTMLInputElement)?.value, 
-            address: (document.querySelector('textarea[name="address"]') as HTMLTextAreaElement)?.value 
-          },
+          customerId: data.data.id,
+          name: data.data.name, 
+          phone: data.data.phone, 
+          email: data.data.email, 
+          city: (document.querySelector('input[name="city"]') as HTMLInputElement)?.value, 
+          address: (document.querySelector('textarea[name="address"]') as HTMLTextAreaElement)?.value,
           cartItems: cartItems,
           quantity: totalQuantity,
           amount: totalAmount,
@@ -96,9 +96,7 @@ const CustomerModal = ({ isCustomerModalOpen, handleCloseCustomerModal, cartItem
     }
   });
 
-
-  // calculate total amount
-  const totalAmount = cartItems.reduce((total, item) => total + (item.sellPrice * item.quantity),0);
+  
 
   // checking customer modal
   if (!isCustomerModalOpen) return null;
