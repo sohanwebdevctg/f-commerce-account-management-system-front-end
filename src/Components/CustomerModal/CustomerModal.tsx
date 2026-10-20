@@ -2,6 +2,9 @@ import { FaTimes, FaUser, FaPhone, FaEnvelope, FaCity, FaMapMarkerAlt } from "re
 import Swal from "sweetalert2";
 import axiosInstance from "../../api/axiosInstance";
 import { useMutation } from "@tanstack/react-query";
+import { useState } from "react";
+import { useAuth } from "../../Context/AuthContext";
+import { useNavigate } from "react-router";
 
 interface CustomerModalProps {
   isCustomerModalOpen: boolean;
@@ -10,6 +13,10 @@ interface CustomerModalProps {
 }
 
 const CustomerModal = ({ isCustomerModalOpen, handleCloseCustomerModal, cartItems }: CustomerModalProps) => {
+
+  const {role, id} = useAuth();
+  const [activeBtn, setActiveBtn] = useState(false);
+  const navigate = useNavigate();
 
   // SweetAlert Toast Notification Config
     const Toast = Swal.mixin({
@@ -20,24 +27,75 @@ const CustomerModal = ({ isCustomerModalOpen, handleCloseCustomerModal, cartItem
       timerProgressBar: true,
     });
 
+  
+
   // call customer mutation
-    const {mutate: customerMutation} = useMutation({
-      mutationFn: async(data: {name: string; phone: string, email?: string;}) => {
+    const {mutate: customerMutation} = useMutation({mutationFn: async(data: {name: string; phone: string, email?: string;}) => {
         const response = await axiosInstance.post('/customers', data)
         return response.data;
       },
-      onSuccess: (data) => {
-        // show toast
-        Toast.fire({ icon: "success", title: data.message});
+      onSuccess: (data, variables) => {
+        if (data.success === true) {
+        
+        // ফর্ম থেকে নেওয়া সুনির্দিষ্ট ডেলিভারি ইনফরমেশন এবং কাস্টমার আইডি নিয়ে অর্ডার পেলোড তৈরি
+        const totalQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+        const totalAmount = cartItems.reduce((total, item) => total + (item.sellPrice * item.quantity), 0);
+
+        const orderPayload = {
+          customerId: data.data.id, // কাস্টমার টেবিল থেকে আসা আইডি
+          customerInfo: { 
+            name: variables.name, 
+            phone: variables.phone, 
+            email: variables.email, 
+            city: (document.querySelector('input[name="city"]') as HTMLInputElement)?.value, 
+            address: (document.querySelector('textarea[name="address"]') as HTMLTextAreaElement)?.value 
+          },
+          cartItems: cartItems,
+          quantity: totalQuantity,
+          amount: totalAmount,
+          createdById: id || null
+        };
+
+        // এবার অর্ডার মিউটেশন কল হবে
+        orderMutation(orderPayload);
+      }
+        
       },
       onError: (error: any) => {
         // show toast
       Toast.fire({ icon: "error", title: error.response?.data?.message || error.message});
+      setActiveBtn(false);
       }
-    })
-  
-  // calculate total quantity
-  const totalQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+    });
+
+      // call order mutation
+  const { mutate: orderMutation } = useMutation({
+    mutationFn: async (orderData: any) => {
+      const response = await axiosInstance.post('/orders', orderData);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      // show toast
+      Toast.fire({ icon: "success", title: data.message });
+      localStorage.removeItem('cartItems');
+      // button show
+      setTimeout(() => {setActiveBtn(false)}, 1500);
+      // close customer modal
+      handleCloseCustomerModal();
+      // navigate the user
+      if (role === "ADMIN" || role === "MODERATOR" || role === "STAFF") {
+        navigate("/dashboard/orderTable");
+      } else {
+        navigate("/");
+      }
+    },
+    onError: (error: any) => {
+    // show toast
+    Toast.fire({ icon: "error", title: error.response?.data?.message || error.message});
+    setTimeout(() => {setActiveBtn(false)}, 1500);
+    }
+  });
+
 
   // calculate total amount
   const totalAmount = cartItems.reduce((total, item) => total + (item.sellPrice * item.quantity),0);
@@ -70,20 +128,14 @@ const CustomerModal = ({ isCustomerModalOpen, handleCloseCustomerModal, cartItem
     Toast.fire({ icon: "error", title: "Enter a valid Bangladeshi mobile number (e.g., 017XXXXXXXX)" });
       return;
     }
+  
+  // loading state start
+  setActiveBtn(true);
 
   // call customer mutation
   customerMutation({name,phone, email});
 
-  // orderPayload
-  const orderPayload = {
-    customerInfo: { name, phone, email, city, address },
-    cartItems: cartItems,
-    quantity: totalQuantity,
-    amount: totalAmount
-  };
-
-  console.log("Complete Order Payload to send Backend:", orderPayload);
-
+  
   }
 
   return (
@@ -163,7 +215,9 @@ const CustomerModal = ({ isCustomerModalOpen, handleCloseCustomerModal, cartItem
           </div>
 
           {/* Submit Button */}
-          <button type="submit" className="w-full py-3.5 bg-red-500 hover:bg-green-500 font-bold text-white rounded-xl shadow-md transition flex items-center justify-center gap-2 mt-2 cursor-pointer">Confirm Order (৳{totalAmount})</button>
+          <button type="submit" className="w-full py-3.5 bg-red-500 hover:bg-green-500 font-bold text-white rounded-xl shadow-md transition flex items-center justify-center gap-2 mt-2 cursor-pointer" disabled={activeBtn}>
+            {activeBtn ? "Confirmed..." : `Confirm Order (৳${cartItems.reduce((total, item) => total + (item.sellPrice * item.quantity), 0)})`}
+          </button>
         </form>
       </div>
     </div>

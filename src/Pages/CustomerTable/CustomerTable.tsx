@@ -64,7 +64,7 @@ const { mutate: updateCustomerStatusMutation } = useMutation({
         {/* search and status */}
         <div className="flex justify-between items-center gap-2 p-1 w-full sm:w-auto">
           <button className="btn bg-red-500 btn-sm text-white w-1/2 lg:w-auto" onClick={() => {setSearchTerm(""); setSelectedType("")}}>Reset</button>
-              {/* customerStatus */}
+          {/* customerStatus */}
           <div className="flex flex-col -mt-3.5 w-full">
             <span className="text-xs font-semibold mb-0.5">Customer Status</span>
               <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)}
