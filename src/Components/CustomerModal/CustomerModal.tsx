@@ -55,7 +55,6 @@ const CustomerModal = ({ isCustomerModalOpen, handleCloseCustomerModal, cartItem
           amount: totalAmount,
           createdById: id || null
         };
-
         // এবার অর্ডার মিউটেশন কল হবে
         orderMutation(orderPayload);
       }
@@ -68,7 +67,7 @@ const CustomerModal = ({ isCustomerModalOpen, handleCloseCustomerModal, cartItem
       }
     });
 
-      // call order mutation
+  // call order mutation
   const { mutate: orderMutation } = useMutation({
     mutationFn: async (orderData: any) => {
       const response = await axiosInstance.post('/orders', orderData);
@@ -78,6 +77,7 @@ const CustomerModal = ({ isCustomerModalOpen, handleCloseCustomerModal, cartItem
       // show toast
       Toast.fire({ icon: "success", title: data.message });
       localStorage.removeItem('cartItems');
+      // setCartItems([]);
       // button show
       setTimeout(() => {setActiveBtn(false)}, 1500);
       // close customer modal
