@@ -26,6 +26,7 @@ import UpdateProduct from "../Pages/UpdateProduct/UpdateProduct";
 import Home from "../Pages/Home/Home";
 import CustomerTable from "../Pages/CustomerTable/CustomerTable";
 import OrderTable from "../Pages/OrderTable/OrderTable";
+import OrderDetails from "../Pages/OrderDetails/OrderDetails";
 
 // all router here
 const router = createBrowserRouter([
@@ -124,6 +125,10 @@ const router = createBrowserRouter([
     {
     path: '/dashboard/orderTable',
     element: <PrivateRoute allowedRoles={['ADMIN', 'MODERATOR','STAFF']}><OrderTable></OrderTable></PrivateRoute>
+    },
+    {
+    path: '/dashboard/orders/:id',
+    element: <PrivateRoute allowedRoles={['ADMIN', 'MODERATOR','STAFF']}><OrderDetails></OrderDetails></PrivateRoute>
     },
     ]
   },
