@@ -205,7 +205,7 @@ const ProductDetails = () => {
                     <td className="py-2.5 px-3 text-gray-600">৳{item.costPrice}</td>
                     <td className="py-2.5 px-3 font-bold text-emerald-600">৳{item.sellPrice}</td>
                     <td className="py-2.5 px-3 font-medium text-gray-700">
-                      {item.orderCount ?? item.orders ?? 0}
+                      {item.totalSold || 0}
                     </td>
                     <td className="py-2.5 px-3 font-medium text-blue-600">৳{item.profit || 0}</td>
                     <td className="py-2.5 px-3">
