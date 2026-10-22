@@ -438,8 +438,8 @@ const { mutate: restoreProductVariantItemMutation } = useMutation({
         }
       }
 
-      // মূল প্রোডাক্টের সর্বমোট অর্ডার
-      const totalOrders = product._count?.orderItems || 0;
+      // মূল প্রোডাক্টের সর্বমোট sold
+      const totalSoldQty = product.totalSold || 0;
 
       // শুধুমাত্র একটিভ (ডিলিট না হওয়া) ভ্যারিয়েন্টগুলো ফিল্টার করা
       const activeVariants = (product.variants || []).filter((v: any) => !v.isDeleted);
@@ -496,7 +496,7 @@ const { mutate: restoreProductVariantItemMutation } = useMutation({
 
             {/* Order (Product Level) */}
             <td className="py-3 px-4 font-bold text-xs text-indigo-600 text-center">
-              {totalOrders}
+              {totalSoldQty}
             </td>
 
             {/* product Status */}
@@ -575,7 +575,7 @@ const { mutate: restoreProductVariantItemMutation } = useMutation({
   const totalOriginalItems = (variant.variantItems || []).length;
   const isOriginallySingle = totalOriginalItems === 1;
 
-  const variantOrders = variant._count?.orderItems || 0;
+  const variantSoldQty = variant.totalSold || 0;
   const isSizesOpen = expandedVariants[variant.id];
 
   // =========================================================================
@@ -629,7 +629,7 @@ const { mutate: restoreProductVariantItemMutation } = useMutation({
 
         {/* Orders */}
         <div className="text-xs font-semibold text-indigo-600 w-1/6 text-center">
-          {variantOrders} Orders
+          {variantSoldQty} Orders
         </div>
 
         {/* Stock */}
@@ -764,7 +764,7 @@ const { mutate: restoreProductVariantItemMutation } = useMutation({
             {priceRangeText}
           </div>
           <div className="font-semibold text-indigo-600">
-            {variantOrders} Orders
+            {variantSoldQty} Orders
           </div>
           <div className="text-base-content/70">
             Total Stock:{" "}
@@ -830,7 +830,7 @@ const { mutate: restoreProductVariantItemMutation } = useMutation({
             </div>
           ) : (
             activeVariantItems.map((item: any, itemIdx: number) => {
-              const itemOrders = item._count?.orderItems || 0;
+              const itemSoldQty = item.totalSold || 0;
 
               return (
                 <div
@@ -855,7 +855,7 @@ const { mutate: restoreProductVariantItemMutation } = useMutation({
                   </div>
 
                   <div className="text-xs font-semibold text-indigo-600 w-1/6 text-center">
-                    {itemOrders || variantOrders} Orders
+                    {itemSoldQty} Orders
                   </div>
 
                   <div className="text-xs text-base-content/70 w-1/6 text-center">
@@ -984,7 +984,7 @@ const { mutate: restoreProductVariantItemMutation } = useMutation({
                   }
                 }
 
-                const totalOrders = product._count?.orderItems || 0;
+                const totalSoldQty = product.totalSold || 0;
 
                 return (
                   <React.Fragment key={product.id}>
@@ -1038,7 +1038,7 @@ const { mutate: restoreProductVariantItemMutation } = useMutation({
 
                       {/* Order */}
                       <td className="py-3 px-4 font-bold text-xs text-indigo-600 text-center">
-                        {totalOrders}
+                        {totalSoldQty}
                       </td>
 
                       {/* Product Status (শুধু যদি মেইন প্রোডাক্ট ডিলিট হয়ে থাকে) */}
@@ -1112,7 +1112,7 @@ const { mutate: restoreProductVariantItemMutation } = useMutation({
                               });
 
                               const hasMultipleSizes = (variant.variantItems || []).length > 1;
-                              const variantOrders = variant._count?.orderItems || 0;
+                              const variantSoldQty = variant.totalSold || 0;
                               const isSizesOpen = expandedVariants[variant.id];
                               const showVariantControls = isProductDeleted || isVariantDeleted;
 
@@ -1162,7 +1162,7 @@ const { mutate: restoreProductVariantItemMutation } = useMutation({
                                     </div>
 
                                     <div className="text-xs font-semibold text-indigo-600 w-1/6 text-center">
-                                      {variantOrders} Orders
+                                      {variantSoldQty} Orders
                                     </div>
 
                                     <div className="text-xs text-base-content/70 w-1/6 text-center">
@@ -1272,7 +1272,7 @@ const { mutate: restoreProductVariantItemMutation } = useMutation({
                                     <div className="hidden md:flex items-center gap-8 text-xs">
                                       <div className="font-semibold text-emerald-600">{priceRangeText}</div>
                                       <div className="font-semibold text-indigo-600">
-                                        {variantOrders} Orders
+                                        {variantSoldQty} Orders
                                       </div>
                                       <div className="text-base-content/70">
                                         Total Stock: <strong className="text-base-content">{totalVariantStock}</strong>
@@ -1325,7 +1325,7 @@ const { mutate: restoreProductVariantItemMutation } = useMutation({
                                   {isSizesOpen && (
                                     <div className="border-t border-base-200/80 bg-base-200/20 p-2.5 flex flex-col gap-1.5">
                                       {filteredVariantItems.map((item: any, itemIdx: number) => {
-                                        const itemOrders = item._count?.orderItems || 0;
+                                        const itemSoldQty = item.totalSold || 0;
                                         const isItemDeleted = item.isDeleted;
                                         const showItemControls =
                                           isProductDeleted || isVariantDeleted || isItemDeleted;
@@ -1350,7 +1350,7 @@ const { mutate: restoreProductVariantItemMutation } = useMutation({
                                             </div>
 
                                             <div className="text-xs font-semibold text-indigo-600 w-1/6 text-center">
-                                              {itemOrders || variantOrders} Orders
+                                              {itemSoldQty} Orders
                                             </div>
 
                                             <div className="text-xs text-base-content/70 w-1/6 text-center">
