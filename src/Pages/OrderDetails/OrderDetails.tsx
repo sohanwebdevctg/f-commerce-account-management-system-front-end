@@ -2,11 +2,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "../../api/axiosInstance";
 import { useNavigate, useParams } from "react-router";
 import Swal from "sweetalert2";
+import { useAuth } from "../../Context/AuthContext";
 
 // Fetch Order Detail
 const fetchOrderDetails = async (id: string) => {
   const response = await axiosInstance.get(`/orders/${id}`);
   return response.data?.data;
+};
+
+// quantity increment and decrement
+const updateOrderQuantity = async ({ itemId, type }: { itemId: string; type: 'increment' | 'decrement' }) => {
+  const response = await axiosInstance.patch(`/orders/items/${itemId}/quantity`, { type });
+  return response.data;
 };
 
 // delete order (hard delete)
@@ -18,6 +25,7 @@ const deleteOrder = async (id: string) => {
 const OrderDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const {role} = useAuth();
 
   // SweetAlert Toast Notification Config
   const Toast = Swal.mixin({
@@ -54,6 +62,18 @@ const OrderDetails = () => {
       };
     
       const queryClient = useQueryClient();
+    
+    // Quantity Update Mutation
+  const { mutate: updateQuantityMutation } = useMutation({
+    mutationFn: updateOrderQuantity,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["orderDetails", id] });
+      Toast.fire({ icon: "success", title: data?.message || "Quantity updated successfully!" });
+    },
+    onError: (error: any) => {
+      Toast.fire({ icon: "error", title: error?.response?.data?.message || "Failed to update quantity!" });
+    },
+  });
 
     // Delete Order Mutation
       const { mutate: deleteOrderMutation } = useMutation({
@@ -68,6 +88,17 @@ const OrderDetails = () => {
         Toast.fire({ icon: "error", title: error?.response?.data?.message || "Failed to delete Product item!"});
         },
       });
+
+  
+    // handle quantity change function common
+  const handleQuantityChange = (itemId: string, currentQty: number, type: 'increment' | 'decrement') => {
+  if (type === 'decrement' && currentQty <= 1) {
+    Toast.fire({ icon: "warning", title: "Quantity cannot be less than 1!" });
+    return;
+  }
+  // সরাসরি মিউটেশন কল হবে, আর ব্যাকএন্ড স্টক চেক করে রেসপন্স বা এরর দেবে
+  updateQuantityMutation({ itemId, type });
+};
 
   if (isLoading) {
     return (
@@ -142,12 +173,8 @@ const OrderDetails = () => {
           <th className="w-1/5">Color / Size</th>
           <th className="text-center w-1/5">Quantity</th>
           <th className="text-right w-1/5">Total Amount</th>
-          {(order?.status === 'ACCEPTED' || order?.status === 'RETURNED') && (
-          <th className="text-center w-1/5">Actions</th>
-          )}
-          {(order?.status === 'RETURNED') && (
-          <th className="text-right w-1/5">Damage</th>
-          )}
+          {role !== 'STAFF' && (order?.status === 'ACCEPTED' || order?.status === 'RETURNED') && (<th className="text-center w-1/5">Actions</th>)}
+        {role !== 'STAFF' && (order?.status === 'RETURNED') && (<th className="text-right w-1/5">Damage</th>)}
         </tr>
       </thead>
       <tbody className="divide-y divide-gray-100 text-sm">
@@ -198,11 +225,15 @@ const OrderDetails = () => {
 
               {/* কোয়ান্টিটি এবং প্লাস-মাইনাস বাটন */}
               <td className="text-center">
-                {(order?.status === 'ACCEPTED' || order?.status === 'RETURNED') ? (
+                {role !== 'STAFF' && (order?.status === 'ACCEPTED' || order?.status === 'RETURNED') ? (
                   <div className="inline-flex items-center gap-1 p-1">
-                    <button className="w-6 h-6 flex items-center justify-center bg-red-500 rounded text-xs font-bold text-white">-</button>
+                    <button className="w-6 h-6 flex items-center justify-center bg-red-500 rounded text-xs font-bold text-white"
+                    onClick={() => handleQuantityChange(item.id, item.quantity, 'decrement')}
+                    >-</button>
                     <span className="w-6 text-center font-semibold text-gray-700">{item.quantity}</span>
-                    <button className="w-6 h-6 flex items-center justify-center bg-green-500 rounded text-xs font-bold text-white">+</button>
+                    <button className="w-6 h-6 flex items-center justify-center bg-green-500 rounded text-xs font-bold text-white"
+                    onClick={() => handleQuantityChange(item.id, item.quantity, 'increment')}
+                    >+</button>
                   </div>
                 ) : (
                   <span className="font-semibold text-gray-700">{item.quantity}</span>
@@ -215,26 +246,26 @@ const OrderDetails = () => {
               </td>
               
               {/* অ্যাকশন বাটন (ডিলিট) */}
-              {(order?.status === 'ACCEPTED' || order?.status === 'RETURNED') && (
-                <td>
-                  <button className="btn btn-xs bg-red-500 hover:bg-red-600 text-white border-none" onClick={() => handleDelete(item.id)}>
-                    Delete
-                  </button>
-                </td>
-              )}
+              {role !== 'STAFF' && (order?.status === 'ACCEPTED' || order?.status === 'RETURNED') && (
+              <td>
+                <button className="btn btn-xs bg-red-500 hover:bg-red-600 text-white border-none" onClick={() => handleDelete(item.id)}>
+                  Delete
+                </button>
+              </td>
+            )}
 
-              {order?.status === 'RETURNED' && (
-                <td>
-                  <select className="select select-bordered select-xs bg-gray-50 text-xs w-28">
-                    <option value="" disabled selected>Damage Qty</option>
-                    {[...Array(item.quantity)].map((_, i) => (
-                      <option key={i + 1} value={i + 1}>
-                        {i + 1} Pcs
-                      </option>
-                    ))}
-                  </select>
-                </td>
-              )}
+              {role !== 'STAFF' && order?.status === 'RETURNED' && (
+            <td>
+              <select className="select select-bordered select-xs bg-gray-50 text-xs w-28">
+                <option value="" disabled selected>Damage Qty</option>
+                {[...Array(item.quantity)].map((_, i) => (
+                  <option key={i + 1} value={i + 1}>
+                    {i + 1} Pcs
+                  </option>
+                ))}
+              </select>
+            </td>
+          )}
             </tr>
           ))
         ) : (
