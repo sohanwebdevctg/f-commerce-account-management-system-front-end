@@ -1,6 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "../../api/axiosInstance";
 import { useNavigate, useParams } from "react-router";
+import Swal from "sweetalert2";
 
 // Fetch Order Detail
 const fetchOrderDetails = async (id: string) => {
@@ -8,9 +9,24 @@ const fetchOrderDetails = async (id: string) => {
   return response.data?.data;
 };
 
+// delete order (hard delete)
+const deleteOrder = async (id: string) => {
+  const response = await axiosInstance.delete(`/orders/items/${id}`);
+  return response.data;
+};
+
 const OrderDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
+  // SweetAlert Toast Notification Config
+  const Toast = Swal.mixin({
+    toast: true,
+    position: "top-end",
+    showConfirmButton: false,
+    timer: 1000,
+    timerProgressBar: true,
+  });
 
   // TanStack Query
   const { data: order, isLoading, isError, error } = useQuery({
@@ -18,6 +34,40 @@ const OrderDetails = () => {
     queryFn: () => fetchOrderDetails(id as string),
     enabled: !!id,
   });
+
+
+  // Handle Delete Confirmation
+      const handleDelete = (itemId: string) => {
+        Swal.fire({
+          title: "Are you sure?",
+          text: "You want to delete this Product item?",
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonColor: "#d33",
+          cancelButtonColor: "#3085d6",
+          confirmButtonText: "Yes, delete it!",
+        }).then((result) => {
+          if (result.isConfirmed) {
+            deleteOrderMutation(itemId);
+          }
+        });
+      };
+    
+      const queryClient = useQueryClient();
+
+    // Delete Order Mutation
+      const { mutate: deleteOrderMutation } = useMutation({
+        mutationFn: deleteOrder,
+        onSuccess: (data) => {
+          queryClient.invalidateQueries({ queryKey: ["orderDetails"] });
+          // show toast
+          Toast.fire({ icon: "success", title: data?.message || "Product item deleted successfully!"});
+        },
+        onError: (error: any) => {
+          // show toast
+        Toast.fire({ icon: "error", title: error?.response?.data?.message || "Failed to delete Product item!"});
+        },
+      });
 
   if (isLoading) {
     return (
@@ -46,10 +96,7 @@ const OrderDetails = () => {
       {/* Back Button */}
       <button 
         onClick={() => navigate(-1)} 
-        className="btn btn-sm bg-green-600 hover:bg-green-700 text-white border-none"
-      >
-        Back
-      </button>
+        className="btn btn-sm bg-green-600 hover:bg-green-700 text-white border-none">Back</button>
 
       {/* কাস্টমার ও অর্ডার ইনফরমেশন কার্ড */}
       <div className="bg-white shadow-md rounded-xl p-6 border border-gray-100">
@@ -104,82 +151,79 @@ const OrderDetails = () => {
         </tr>
       </thead>
       <tbody className="divide-y divide-gray-100 text-sm">
-        {order?.orderItems?.map((item: any) => (
-          <tr key={item.id} className="hover:bg-gray-50/50">
-            {/* প্রোডাক্ট ইমেজ ও নাম */}
-            <td>
-              <div className="flex items-center gap-3">
-                {item.image ? (
-                  <img 
-                    src={item.image} 
-                    alt={item.productName} 
-                    className="w-12 h-12 object-cover rounded-lg border shadow-sm flex-shrink-0" 
-                  />
+        {order?.orderItems && order.orderItems.length > 0 ? (
+          order.orderItems.map((item: any) => (
+            <tr key={item.id} className="hover:bg-gray-50/50">
+              {/* প্রোডাক্ট ইমেজ ও নাম */}
+              <td>
+                <div className="flex items-center gap-3">
+                  {item.image ? (
+                    <img 
+                      src={item.image} 
+                      alt={item.productName} 
+                      className="w-12 h-12 object-cover rounded-lg border shadow-sm flex-shrink-0" 
+                    />
+                  ) : (
+                    <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center text-xs text-gray-500 flex-shrink-0">
+                      No Image
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-800 truncate">{item.productName}</p>
+                    <p className="text-xs text-gray-500">Unit Price: ৳{item.sellPrice}</p>
+                  </div>
+                </div>
+              </td>
+
+              {/* ভেরিয়েন্ট, কালার ও সাইজ */}
+              <td>
+                <div className="space-y-1 text-xs text-gray-600 whitespace-nowrap">
+                  {item.variantName && <p><strong>Variant:</strong> {item.variantName}</p>}
+                  {item.colorCode && (
+                    <div className="flex items-center gap-1.5">
+                      <strong>Color:</strong> 
+                      <span 
+                        className="w-3.5 h-3.5 rounded-full inline-block border shadow-inner flex-shrink-0" 
+                        style={{ backgroundColor: item.colorCode }}
+                        title={item.colorCode}
+                      ></span>
+                    </div>
+                  )}
+                  {item.size && <p><strong>Size:</strong> {item.size}</p>}
+                  {!item.variantName && !item.colorCode && !item.size && (
+                    <span className="text-gray-400">Standard</span>
+                  )}
+                </div>
+              </td>
+
+              {/* কোয়ান্টিটি এবং প্লাস-মাইনাস বাটন */}
+              <td className="text-center">
+                {(order?.status === 'ACCEPTED' || order?.status === 'RETURNED') ? (
+                  <div className="inline-flex items-center gap-1 p-1">
+                    <button className="w-6 h-6 flex items-center justify-center bg-red-500 rounded text-xs font-bold text-white">-</button>
+                    <span className="w-6 text-center font-semibold text-gray-700">{item.quantity}</span>
+                    <button className="w-6 h-6 flex items-center justify-center bg-green-500 rounded text-xs font-bold text-white">+</button>
+                  </div>
                 ) : (
-                  <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center text-xs text-gray-500 flex-shrink-0">
-                    No Image
-                  </div>
+                  <span className="font-semibold text-gray-700">{item.quantity}</span>
                 )}
-                <div className="min-w-0">
-                  <p className="font-semibold text-gray-800 truncate">{item.productName}</p>
-                  <p className="text-xs text-gray-500">Unit Price: ৳{item.sellPrice}</p>
-                </div>
-              </div>
-            </td>
+              </td>
 
-            {/* ভেরিয়েন্ট, কালার ও সাইজ */}
-            <td>
-              <div className="space-y-1 text-xs text-gray-600 whitespace-nowrap">
-                {item.variantName && <p><strong>Variant:</strong> {item.variantName}</p>}
-                {item.colorCode && (
-                  <div className="flex items-center gap-1.5">
-                    <strong>Color:</strong> 
-                    <span 
-                      className="w-3.5 h-3.5 rounded-full inline-block border shadow-inner flex-shrink-0" 
-                      style={{ backgroundColor: item.colorCode }}
-                      title={item.colorCode}
-                    ></span>
-                  </div>
-                )}
-                {item.size && <p><strong>Size:</strong> {item.size}</p>}
-                {!item.variantName && !item.colorCode && !item.size && (
-                  <span className="text-gray-400">Standard</span>
-                )}
-              </div>
-            </td>
-
-            {/* কোয়ান্টিটি এবং প্লাস-মাইনাস বাটন */}
-            <td className="text-center">
-              {(order?.status === 'ACCEPTED' || order?.status === 'RETURNED') ? (
-                <div className="inline-flex items-center gap-1 p-1">
-                  <button className="w-6 h-6 flex items-center justify-center bg-red-500 rounded text-xs font-bold text-white">
-                    -
-                  </button>
-                  <span className="w-6 text-center font-semibold text-gray-700">{item.quantity}</span>
-                  <button className="w-6 h-6 flex items-center justify-center bg-green-500 rounded text-xs font-bold text-white">
-                    +
-                  </button>
-                </div>
-              ) : (
-                <span className="font-semibold text-gray-700">{item.quantity}</span>
-              )}
-            </td>
-
-            {/* মোট দাম */}
-            <td className="text-right font-bold text-gray-800 whitespace-nowrap">
-              ৳{item.totalPrice}
-            </td>
-            
+              {/* মোট দাম */}
+              <td className="text-right font-bold text-gray-800 whitespace-nowrap">
+                ৳{item.totalPrice}
+              </td>
               
-            {/* অ্যাকশন বাটন (ডিলিট) */}
-            <td>
+              {/* অ্যাকশন বাটন (ডিলিট) */}
               {(order?.status === 'ACCEPTED' || order?.status === 'RETURNED') && (
-                <button className="btn btn-xs bg-red-500 hover:bg-red-600 text-white border-none">
-                  Delete
-                </button>
+                <td>
+                  <button className="btn btn-xs bg-red-500 hover:bg-red-600 text-white border-none" onClick={() => handleDelete(item.id)}>
+                    Delete
+                  </button>
+                </td>
               )}
-            </td>
-            {order?.status === 'RETURNED' && (
+
+              {order?.status === 'RETURNED' && (
                 <td>
                   <select className="select select-bordered select-xs bg-gray-50 text-xs w-28">
                     <option value="" disabled selected>Damage Qty</option>
@@ -189,10 +233,17 @@ const OrderDetails = () => {
                       </option>
                     ))}
                   </select>
+                </td>
+              )}
+            </tr>
+          ))
+        ) : (
+          <tr>
+            <td colSpan={6} className="text-center py-12 bg-red-500 text-white font-bold text-base">
+              No products available in this order!
             </td>
-                )}
           </tr>
-        ))}
+        )}
       </tbody>
     </table>
   </div>
