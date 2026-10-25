@@ -24,7 +24,7 @@ const deleteOrder = async (id: string) => {
 
 // update damage quantity
 const updateDamageQuantity = async ({ itemId, damagedQuantity }: { itemId: string; damagedQuantity: number }) => {
-  const response = await axiosInstance.patch(`/orders/order-items/${itemId}/damage`, { damagedQuantity });
+  const response = await axiosInstance.patch(`/orders/items/${itemId}/damage`, { damagedQuantity });
   return response.data;
 };
 
@@ -291,17 +291,21 @@ const OrderDetails = () => {
             )}
 
             {role !== 'STAFF' && order?.status === 'RETURNED' && (
-              <td>
-                <select className="select select-bordered select-xs bg-gray-50 text-xs w-28" value={item.damagedQuantity || ""} onChange={(e) => handleDamageChange(item.id, Number(e.target.value))}>
-                  <option value="" disabled>Damage Qty</option>
-                  {[...Array(item.quantity)].map((_, i) => (
-                    <option key={i + 1} value={i + 1}>
-                      {i + 1} Pcs
-                    </option>
-                  ))}
-                </select>
-              </td>
-            )}
+            <td>
+              <select 
+                className="select select-bordered select-xs bg-gray-50 text-xs w-28" 
+                value={item.damagedQuantity || 0} 
+                onChange={(e) => handleDamageChange(item.id, Number(e.target.value))}
+              >
+                <option value={0}>0 Pcs (No Damage)</option>
+                {[...Array(item.quantity)].map((_, i) => (
+                  <option key={i + 1} value={i + 1}>
+                    {i + 1} Pcs
+                  </option>
+                ))}
+              </select>
+            </td>
+          )}
             </tr>
           ))
         ) : (
