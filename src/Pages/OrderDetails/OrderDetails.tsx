@@ -22,6 +22,12 @@ const deleteOrder = async (id: string) => {
   return response.data;
 };
 
+// update damage quantity
+const updateDamageQuantity = async ({ itemId, damagedQuantity }: { itemId: string; damagedQuantity: number }) => {
+  const response = await axiosInstance.patch(`/orders/order-items/${itemId}/damage`, { damagedQuantity });
+  return response.data;
+};
+
 const OrderDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -99,6 +105,36 @@ const OrderDetails = () => {
   // সরাসরি মিউটেশন কল হবে, আর ব্যাকএন্ড স্টক চেক করে রেসপন্স বা এরর দেবে
   updateQuantityMutation({ itemId, type });
 };
+
+  // Handle Damage Quantity Change with Confirmation
+  const handleDamageChange = (itemId: string, selectedQty: number) => {
+    Swal.fire({
+      title: "Are you sure?",
+      text: "Do you want to change Damage quantity?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, change it!",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        // কনফার্ম করলে এপিআই হিট হবে
+        updateDamageMutation({ itemId, damagedQuantity: selectedQty });
+      }
+    });
+  };
+
+  // Damage Quantity Update Mutation
+  const { mutate: updateDamageMutation } = useMutation({
+    mutationFn: updateDamageQuantity,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["orderDetails", id] });
+      Toast.fire({ icon: "success", title: data?.message || "Damage quantity updated successfully!" });
+    },
+    onError: (error: any) => {
+      Toast.fire({ icon: "error", title: error?.response?.data?.message || "Failed to update damage quantity!" });
+    },
+  });
 
   if (isLoading) {
     return (
@@ -254,18 +290,18 @@ const OrderDetails = () => {
               </td>
             )}
 
-              {role !== 'STAFF' && order?.status === 'RETURNED' && (
-            <td>
-              <select className="select select-bordered select-xs bg-gray-50 text-xs w-28">
-                <option value="" disabled selected>Damage Qty</option>
-                {[...Array(item.quantity)].map((_, i) => (
-                  <option key={i + 1} value={i + 1}>
-                    {i + 1} Pcs
-                  </option>
-                ))}
-              </select>
-            </td>
-          )}
+            {role !== 'STAFF' && order?.status === 'RETURNED' && (
+              <td>
+                <select className="select select-bordered select-xs bg-gray-50 text-xs w-28" value={item.damagedQuantity || ""} onChange={(e) => handleDamageChange(item.id, Number(e.target.value))}>
+                  <option value="" disabled>Damage Qty</option>
+                  {[...Array(item.quantity)].map((_, i) => (
+                    <option key={i + 1} value={i + 1}>
+                      {i + 1} Pcs
+                    </option>
+                  ))}
+                </select>
+              </td>
+            )}
             </tr>
           ))
         ) : (
