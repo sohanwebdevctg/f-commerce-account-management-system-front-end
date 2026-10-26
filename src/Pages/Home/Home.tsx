@@ -130,7 +130,7 @@ const [cartItems, setCartItems] = useState<any[]>(() => {
       <CartDrawer cartItems={cartItems} isCartOpen={isCartOpen} setIsCartOpen={setIsCartOpen} handleProductQuantity={handleProductQuantity} handleRemoveItem={handleRemoveItem} handleClearCart={handleClearCart} handleOpenCustomerModal={handleOpenCustomerModal}/>
 
       {/* customer modal */}
-      <CustomerModal isCustomerModalOpen={isCustomerModalOpen} handleCloseCustomerModal={handleCloseCustomerModal} cartItems={cartItems}></CustomerModal>
+      <CustomerModal isCustomerModalOpen={isCustomerModalOpen} handleCloseCustomerModal={handleCloseCustomerModal} cartItems={cartItems}setCartItems={setCartItems}></CustomerModal>
 
     </div>
   );

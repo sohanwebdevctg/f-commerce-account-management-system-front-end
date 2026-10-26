@@ -10,9 +10,10 @@ interface CustomerModalProps {
   isCustomerModalOpen: boolean;
   handleCloseCustomerModal: () => void;
   cartItems: any[];
+  setCartItems: (items: any[]) => void;
 }
 
-const CustomerModal = ({ isCustomerModalOpen, handleCloseCustomerModal, cartItems }: CustomerModalProps) => {
+const CustomerModal = ({ isCustomerModalOpen, handleCloseCustomerModal, cartItems,setCartItems }: CustomerModalProps) => {
 
   const {role, id} = useAuth();
   const [activeBtn, setActiveBtn] = useState(false);
@@ -77,7 +78,7 @@ const CustomerModal = ({ isCustomerModalOpen, handleCloseCustomerModal, cartItem
       // show toast
       Toast.fire({ icon: "success", title: data.message });
       localStorage.removeItem('cartItems');
-      // setCartItems([]);
+      setCartItems([]);
       // button show
       setTimeout(() => {setActiveBtn(false)}, 1500);
       // close customer modal
