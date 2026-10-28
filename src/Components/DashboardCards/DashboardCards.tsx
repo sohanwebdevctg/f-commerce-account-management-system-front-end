@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import axiosInstance from "../../api/axiosInstance";
 import { useAuth } from "../../Context/AuthContext";
-import { FaBox, FaBoxes, FaChartLine, FaCheckCircle, FaDollarSign, FaTimesCircle, FaTrashAlt, FaUserCheck, FaUserClock, FaUsers, FaUserShield, FaUserSlash, FaUserTimes, FaWallet } from "react-icons/fa";
+import { FaBox, FaBoxes, FaChartLine, FaCheck, FaCheckCircle, FaClock, FaDollarSign, FaSpinner, FaTimesCircle, FaTrashAlt, FaTruck, FaUndo, FaUserCheck, FaUserClock, FaUsers, FaUserShield, FaUserSlash, FaUserTimes, FaWallet } from "react-icons/fa";
 
 
 // Fetch Dashboard Summary Function
@@ -10,7 +10,13 @@ const fetchDashboardSummary = async () => {
   return response.data?.data;
 };
 
-// Fetch all users data
+// Fetch all orders Function
+const fetchAllOrders = async () => {
+  const response = await axiosInstance.get('/orders/summary');
+  return response.data?.data;
+};
+
+// Fetch all users Function
 const fetchAllUsers = async () => {
   const response = await axiosInstance.get('/users');
   return response.data?.data;
@@ -45,6 +51,12 @@ const DashboardCards = () => {
     queryFn: fetchDashboardSummary,
   });
 
+  // Order Query
+  const { data: ordersData, isLoading: isOrderLoading, isError: isOrderError, error: orderError } = useQuery({
+      queryKey: ["orders"],
+      queryFn:fetchAllOrders,
+    });
+
   // User Query
   const {data: usersData, isLoading: isUserLoading, isError: isUserError, error: userError} = useQuery({
     queryKey: ["users"],
@@ -69,9 +81,11 @@ const DashboardCards = () => {
     queryFn: fetchAllCustomers,
   });
 
+  console.log("Orders Summary Data:", ordersData);
+
 
   // Combined Loading state
-  if (isSummaryLoading || isUserLoading || isCategoryLoading || isProductLoading || isCustomerLoading ) {
+  if (isSummaryLoading || isOrderLoading || isUserLoading || isCategoryLoading || isProductLoading || isCustomerLoading ) {
     return (
       <div className="flex justify-center items-center h-64">
         <span className="loading loading-spinner loading-lg text-primary"></span>
@@ -80,15 +94,13 @@ const DashboardCards = () => {
   }
 
   // Combined Error state
-  if (isSummaryError || isUserError || isCategoryError || isProductError || isCustomerError ) {
+  if (isSummaryError || isOrderError || isUserError || isCategoryError || isProductError || isCustomerError ) {
     return (
       <div className="text-center text-red-500 py-10">
-        <p>{(summaryError as any)?.response?.data?.message || (customerError as any)?.response?.data?.message || (userError as any)?.response?.data?.message || (categoryError as any)?.response?.data?.message || (productError as any)?.response?.data?.message || "Failed to load data!"}</p>
+        <p>{(summaryError as any)?.response?.data?.message || (orderError as any)?.response?.data?.message || (customerError as any)?.response?.data?.message || (userError as any)?.response?.data?.message || (categoryError as any)?.response?.data?.message || (productError as any)?.response?.data?.message || "Failed to load data!"}</p>
       </div>
     );
   }
-
-  console.log(productsData)
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -152,7 +164,169 @@ const DashboardCards = () => {
       </div>
       </div>
       {/* transaction section end */}
-      {/* user section start (Visible only to ADMIN and MODERATOR) */}
+      {/* order section start */}
+      <div>
+        <p className="border-b-[1.5px] border-red-500 w-full mb-3 text-xl">Orders</p>
+        {
+          (role === "ADMIN" || role === "MODERATOR") && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
+              {/* Pending Orders */}
+              <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Pending Orders
+                  </span>
+                  <div className="p-3 rounded-lg bg-amber-100">
+                    <FaClock className="text-xl text-amber-600" />
+                  </div>
+                </div>
+                <div className="mt-4 flex items-baseline justify-between">
+                  <h3 className="text-2xl font-bold text-gray-800">
+                    {ordersData?.pendingCount || 0}
+                  </h3>
+                </div>
+              </div>
+              {/* Accepted Orders */}
+              <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Accepted Orders
+                  </span>
+                  <div className="p-3 rounded-lg bg-emerald-100">
+                    <FaCheckCircle className="text-xl text-emerald-600" />
+                  </div>
+                </div>
+                <div className="mt-4 flex items-baseline justify-between">
+                  <h3 className="text-2xl font-bold text-gray-800">
+                    {ordersData?.acceptedCount || 0}
+                  </h3>
+                </div>
+              </div>
+              {/* Processing Orders */}
+            <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Processing Orders
+                </span>
+                <div className="p-3 rounded-lg bg-blue-100">
+                  <FaSpinner className="text-xl text-blue-600" />
+                </div>
+              </div>
+              <div className="mt-4 flex items-baseline justify-between">
+                <h3 className="text-2xl font-bold text-gray-800">
+                  {ordersData?.processingCount || 0}
+                </h3>
+              </div>
+            </div>
+            {/* Confirmed Orders */}
+            <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Confirmed Orders
+                </span>
+                <div className="p-3 rounded-lg bg-indigo-100">
+                  <FaCheck className="text-xl text-indigo-600" />
+                </div>
+              </div>
+              <div className="mt-4 flex items-baseline justify-between">
+                <h3 className="text-2xl font-bold text-gray-800">
+                  {ordersData?.confirmedCount || 0}
+                </h3>
+              </div>
+            </div>
+            {/* Delivered Orders */}
+            <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Delivered Orders
+                  </span>
+                  <div className="p-3 rounded-lg bg-teal-100">
+                    <FaTruck className="text-xl text-teal-600" />
+                  </div>
+                </div>
+                <div className="mt-4 flex items-baseline justify-between">
+                  <h3 className="text-2xl font-bold text-gray-800">
+                    {ordersData?.deliveredCount || 0}
+                  </h3>
+                </div>
+              </div>
+              {/* Returned Orders */}
+              <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Returned Orders
+                  </span>
+                  <div className="p-3 rounded-lg bg-orange-100">
+                    <FaUndo className="text-xl text-orange-600" />
+                  </div>
+                </div>
+                <div className="mt-4 flex items-baseline justify-between">
+                  <h3 className="text-2xl font-bold text-gray-800">
+                    {ordersData?.returnedCount || 0}
+                  </h3>
+                </div>
+              </div>
+              {/* Removed / Cancelled Orders */}
+              <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Removed / Cancelled Orders
+                  </span>
+                  <div className="p-3 rounded-lg bg-rose-100">
+                    <FaTrashAlt className="text-xl text-rose-600" />
+                  </div>
+                </div>
+                <div className="mt-4 flex items-baseline justify-between">
+                  <h3 className="text-2xl font-bold text-gray-800">
+                    {ordersData?.cancelledCount || 0}
+                  </h3>
+                </div>
+              </div>
+            </div>
+          )
+        }
+        {
+          (role === "STAFF") && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
+              {/* Processing Orders */}
+              <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Processing Orders
+                  </span>
+                  <div className="p-3 rounded-lg bg-blue-100">
+                    <FaSpinner className="text-xl text-blue-600" />
+                  </div>
+                </div>
+                <div className="mt-4 flex items-baseline justify-between">
+                  <h3 className="text-2xl font-bold text-gray-800">
+                    {ordersData?.processingCount || 0}
+                  </h3>
+                </div>
+              </div>
+
+              {/* Confirmed Orders */}
+              <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Confirmed Orders
+                  </span>
+                  <div className="p-3 rounded-lg bg-indigo-100">
+                    <FaCheck className="text-xl text-indigo-600" />
+                  </div>
+                </div>
+                <div className="mt-4 flex items-baseline justify-between">
+                  <h3 className="text-2xl font-bold text-gray-800">
+                    {ordersData?.confirmedCount || 0}
+                  </h3>
+                </div>
+              </div>
+            </div>
+          )
+        }
+      </div>
+      {/* order section end */}
+      {/* user section start */}
       {(role === "ADMIN" || role === "MODERATOR") && (
         <div>
           <p className="border-b-[1.5px] border-red-500 w-full mb-3 text-xl font-semibold text-gray-800">Users</p>
