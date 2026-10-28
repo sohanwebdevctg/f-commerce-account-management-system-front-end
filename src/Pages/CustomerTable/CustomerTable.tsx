@@ -94,7 +94,7 @@ const { mutate: updateCustomerStatusMutation } = useMutation({
                   <th className="py-3 px-4">Total Amount</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">Created</th>
-                  <th className="py-3 px-4 text-center">Action</th>
+                  {/* <th className="py-3 px-4 text-center">Action</th> */}
                 </tr>
               </thead>
               {/* Table Body */}
@@ -138,8 +138,9 @@ const { mutate: updateCustomerStatusMutation } = useMutation({
         {/* CreatedAt */}
         <td className="font-semibold text-sm">{new Date(customer.createdAt).toLocaleDateString()}</td>
         {/* Action Buttons */}
-        <td><Link to={`${customer.id}`}> <button className="btn btn-xs bg-emerald-600 hover:bg-emerald-700 text-white border-none">View</button></Link>
-        </td></tr>)))}
+        {/* <td><Link to={`${customer.id}`}> <button className="btn btn-xs bg-emerald-600 hover:bg-emerald-700 text-white border-none">View</button></Link>
+        </td> */}
+        </tr>)))}
         </tbody>
         </table>
         </div>
