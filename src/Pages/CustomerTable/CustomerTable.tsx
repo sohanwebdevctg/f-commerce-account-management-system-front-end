@@ -11,6 +11,7 @@ const getAllCustomers = async ( searchTerm: string, selectedType: string) => {
   return response.data;
 };
 
+
 // update customer type status
 const updateCustomerStatus = async ({ id, customerType }: { id: string; customerType: string }) => {
   const response = await axiosInstance.patch(`/customers/${id}/status`, { customerType });
