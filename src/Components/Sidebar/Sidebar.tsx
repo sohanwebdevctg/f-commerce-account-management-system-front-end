@@ -14,7 +14,7 @@ interface SidebarProps {
 const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }: SidebarProps) => {
   const location = useLocation();
   // context
-  const { logout } = useAuth();
+  const { logout, role } = useAuth();
   const navigate = useNavigate();
 
   // SweetAlert Toast Notification Config
@@ -26,7 +26,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }: SidebarProps) => {
       timerProgressBar: true,
     });
 
-  const menuItems = [
+  const allMenuItems = [
     { title: "Dashboard", path: "/dashboard", icon: <FaChartLine /> },
     { title: "Users", path: "/dashboard/usersTable", icon: <FaUserGroup/> },
     { title: "Categories", path: "/dashboard/categoryTable", icon: <BiCategory /> },
@@ -35,6 +35,14 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }: SidebarProps) => {
     { title: "Orders", path: "/dashboard/orderTable", icon: <FaShoppingCart /> },
     { title: "Customers", path: "/dashboard/customerTable", icon: <FaUsers /> },
   ];
+
+  // যদি ইউজার 'STAFF' হয়, তবে 'Users' এবং 'Categories' মেনু দুটি ফিল্টার করে বাদ দিয়ে দেব
+  const menuItems = allMenuItems.filter((item) => {
+    if (role === "STAFF") {
+      return item.title !== "Users" && item.title !== "Categories";
+    }
+    return true;
+  });
 
   const handleLinkClick = () => {
     if (window.innerWidth < 768) {

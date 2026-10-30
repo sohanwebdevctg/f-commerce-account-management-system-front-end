@@ -48,7 +48,7 @@ const router = createBrowserRouter([
     children: [
     { 
       index: true, 
-      element: <Dashboard></Dashboard>
+      element: <PrivateRoute allowedRoles={['ADMIN', 'MODERATOR', 'STAFF']}><Dashboard></Dashboard></PrivateRoute>
     },
     {
     path: '/dashboard/createUser',
