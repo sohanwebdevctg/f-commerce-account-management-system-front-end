@@ -98,7 +98,7 @@ const Login = () => {
 
             {/* submit */}
             <div className="form-control mt-6">
-              <button type="submit" className="btn btn-primary w-full"  disabled={activeBtn}>{activeBtn ? "Logging in..." : "Login"}</button>
+              <button type="submit" className="btn w-full text-white bg-red-500 hover:bg-green-500 duration-200"  disabled={activeBtn}>{activeBtn ? "Logging in..." : "Login"}</button>
             </div>
           </form>
         </div>
