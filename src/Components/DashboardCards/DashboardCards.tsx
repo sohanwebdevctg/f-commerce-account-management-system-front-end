@@ -44,6 +44,7 @@ const fetchAllCustomers = async () => {
 const DashboardCards = () => {
 
   const { role } = useAuth();
+  const isAdminOrModerator = role === "ADMIN" || role === "MODERATOR";
 
   // Transaction Summary Query
   const { data: summary, isLoading: isSummaryLoading, isError: isSummaryError, error: summaryError } = useQuery({
@@ -60,28 +61,30 @@ const DashboardCards = () => {
   // User Query
   const {data: usersData, isLoading: isUserLoading, isError: isUserError, error: userError} = useQuery({
     queryKey: ["users"],
-    queryFn: fetchAllUsers
+    queryFn: fetchAllUsers,
+    enabled: isAdminOrModerator
   });
 
     // Category Query
     const {data: categoriesData, isLoading: isCategoryLoading, isError: isCategoryError, error: categoryError} = useQuery({
       queryKey: ["categories"],
       queryFn: fetchAllCategories,
+      enabled: isAdminOrModerator
     });
 
   // Product Query
   const {data: productsData, isLoading: isProductLoading, isError: isProductError, error: productError} = useQuery({
     queryKey: ["products"],
     queryFn: fetchAllProducts,
+    enabled: isAdminOrModerator
   });
 
   // Customers Query
   const { data: customersData, isLoading: isCustomerLoading, isError: isCustomerError, error: customerError } = useQuery({
     queryKey: ["customers"],
     queryFn: fetchAllCustomers,
+    enabled: isAdminOrModerator
   });
-
-  console.log("Orders Summary Data:", ordersData);
 
 
   // Combined Loading state
